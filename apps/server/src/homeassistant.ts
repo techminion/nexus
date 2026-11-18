@@ -5,17 +5,18 @@ const SERVICE = /^[a-z_]+\.[a-z0-9_]+$/;
 const ENTITY = /^[a-z_]+\.[a-z0-9_]+$/;
 
 export function createHomeAssistant(cfg: HaCfg, warn: (m: string) => void = () => {}) {
-  const url = cfg.url?.replace(/\/$/, "");
+  const url = /^https?:\/\/[^/?#]+$/.test(cfg.url?.replace(/\/$/, "") ?? "") ? cfg.url!.replace(/\/$/, "") : (cfg.url && warn("HA_URL: must be an http(s) origin, HA disabled"), undefined);
   const sensors = (cfg.sensors ?? "").split(",").map((s) => s.trim()).filter((s) => s && (ENTITY.test(s) || (warn(`HA_SENSORS: ignoring "${s}"`), false)));
   const service = cfg.announceService && (SERVICE.test(cfg.announceService) || (warn("HA_ANNOUNCE_SERVICE: invalid format, announce disabled"), false)) ? cfg.announceService : undefined;
   const configured = !!(url && cfg.token);
   let cache: { at: number; value: unknown } | undefined;
+  let polling: Promise<unknown> | undefined;
 
   const call = async (method: string, path: string, body?: unknown) => {
     let r: Response;
     try {
       r = await fetch(`${url}${path}`, {
-        method, signal: AbortSignal.timeout(5000),
+        method, signal: AbortSignal.timeout(5000), redirect: "error", // never forward the token or body elsewhere
         headers: { authorization: `Bearer ${cfg.token}`, ...(body ? { "content-type": "application/json" } : {}) },
         body: body ? JSON.stringify(body) : undefined,
       });
@@ -31,22 +32,7 @@ export function createHomeAssistant(cfg: HaCfg, warn: (m: string) => void = () =
     async status() {
       if (!configured) return { configured: false, reachable: false, error: null, sensors: [] };
       if (cache && Date.now() - cache.at < 10_000) return cache.value;
-      let value;
-      try {
-        const out = [];
-        for (const id of sensors) {
-          const r = await call("GET", `/api/states/${id}`);
-          if (r.status === 404) continue;
-          if (!r.ok) throw new AppError(502, "ha", `Home Assistant returned ${r.status}.`);
-          const j = (await r.json()) as { state?: unknown; attributes?: { friendly_name?: unknown; unit_of_measurement?: unknown } };
-          out.push({ id, name: String(j.attributes?.friendly_name ?? id), state: String(j.state ?? ""), unit: j.attributes?.unit_of_measurement ? String(j.attributes.unit_of_measurement) : null });
-        }
-        value = { configured: true, reachable: true, error: null, sensors: out };
-      } catch (e) {
-        value = { configured: true, reachable: false, error: e instanceof AppError ? e.message : "Home Assistant returned an unexpected response.", sensors: [] };
-      }
-      cache = { at: Date.now(), value };
-      return value;
+      return (polling ??= poll().finally(() => (polling = undefined)));
     },
     async announce(message: string) {
       if (!configured || !service) throw new AppError(503, "not_configured", "Announcements are not configured on the server (HA_URL / HA_TOKEN / HA_ANNOUNCE_SERVICE).");
@@ -55,4 +41,25 @@ export function createHomeAssistant(cfg: HaCfg, warn: (m: string) => void = () =
       if (!r.ok) throw new AppError(502, "ha", `Home Assistant returned ${r.status} for the announcement.`);
     },
   };
+
+  // One shared, parallel poll; with no sensors configured, ping /api/ so "reachable" is real.
+  async function poll() {
+    let value;
+    try {
+      const ping = await call("GET", "/api/");
+      if (!ping.ok) throw new AppError(502, "ha", `Home Assistant returned ${ping.status}.`);
+      const got = await Promise.all(sensors.map(async (id) => {
+        const r = await call("GET", `/api/states/${id}`);
+        if (r.status === 404) return null;
+        if (!r.ok) throw new AppError(502, "ha", `Home Assistant returned ${r.status}.`);
+        const j = (await r.json()) as { state?: unknown; attributes?: { friendly_name?: unknown; unit_of_measurement?: unknown } };
+        return { id, name: String(j.attributes?.friendly_name ?? id), state: String(j.state ?? ""), unit: j.attributes?.unit_of_measurement ? String(j.attributes.unit_of_measurement) : null };
+      }));
+      value = { configured: true, reachable: true, error: null, sensors: got.filter((x) => x) };
+    } catch (e) {
+      value = { configured: true, reachable: false, error: e instanceof AppError ? e.message : "Home Assistant returned an unexpected response.", sensors: [] };
+    }
+    cache = { at: Date.now(), value };
+    return value;
+  }
 }

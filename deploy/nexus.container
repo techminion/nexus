@@ -1,6 +1,7 @@
 [Unit]
 Description=Nexus core (API + UI)
-After=network-online.target
+After=network-online.target nexus-snapshot.service
+Wants=nexus-snapshot.service
 
 [Container]
 ContainerName=nexus

@@ -9,3 +9,9 @@
 	encode gzip
 	reverse_proxy nexus:3000
 }
+
+# Home Assistant admin UI (Alexa Media Player login happens here, so HTTPS only).
+192.168.31.128:8443, epimetheus:8443 {
+	tls internal
+	reverse_proxy homeassistant:8123
+}

@@ -9,6 +9,7 @@ Image=docker.io/library/caddy:2
 Network=nexus.network
 PublishPort=80:80
 PublishPort=443:443
+PublishPort=8443:8443
 Volume=/etc/nexus/Caddyfile:/etc/caddy/Caddyfile:ro,Z
 Volume=nexus-caddy-data:/data
 

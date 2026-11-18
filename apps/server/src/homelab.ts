@@ -18,7 +18,7 @@ export function parseHosts(raw: string | undefined, warn: (m: string) => void = 
 const read = (p: string) => readFile(p, "utf8").catch(() => null);
 const num = (v: number) => (Number.isFinite(v) ? v : null);
 const cpuTimes = async () => {
-  const f = (await read("/proc/stat"))?.split("\n")[0].split(/\s+/).slice(1).map(Number);
+  const f = (await read("/proc/stat"))?.split("\n")[0].split(/\s+/).slice(1, 9).map(Number); // first 8 only: guest time is already counted in user/nice
   return f && f.length > 4 ? { idle: f[3] + (f[4] || 0), total: f.reduce((a, b) => a + b, 0) } : null;
 };
 

@@ -1,3 +1,4 @@
+import { createHomeAssistant } from "../src/homeassistant.ts";
 import { parseHosts } from "../src/homelab.ts";
 import { createSpotify } from "../src/spotify.ts";
 import { openKv } from "../src/db.ts";
@@ -139,4 +140,18 @@ test("homelab and ha status: auth, graceful absence, no token leak; announce cal
   assert.equal((await bare.inject({ url: "/api/ha/status", cookies: c2 })).json().configured, false);
   assert.equal((await bare.inject({ method: "POST", url: "/api/ha/announce", cookies: c2, payload: { message: "x" } })).statusCode, 503);
   await bare.close();
+});
+
+test("HA adapter: origin-only URL, no redirects, real reachability without sensors", async () => {
+  assert.equal((await createHomeAssistant({ url: "http://ha:8123/x?y", token: "t" }).status() as { configured: boolean }).configured, false);
+  const realFetch = globalThis.fetch;
+  const seen: RequestInit[] = [];
+  globalThis.fetch = async (_u, init) => { seen.push(init!); throw new TypeError("down"); };
+  try {
+    const s = (await createHomeAssistant({ url: "http://ha:8123/", token: "t" }).status()) as { reachable: boolean };
+    assert.equal(s.reachable, false);
+    assert.equal(seen[0].redirect, "error");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });

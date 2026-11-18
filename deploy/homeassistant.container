@@ -6,7 +6,7 @@ After=network-online.target
 ContainerName=homeassistant
 Image=ghcr.io/home-assistant/home-assistant:stable
 Network=nexus.network
-PublishPort=8123:8123
+# No host port: reached over HTTPS via Caddy on :8443.
 Volume=homeassistant-config:/config
 Environment=TZ=Asia/Kolkata
 
