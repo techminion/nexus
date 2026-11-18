@@ -1,9 +1,12 @@
-export const MODULES = ["dashboard", "music", "devices", "timer", "homelab", "settings"] as const;
+export const MODULES = ["dashboard", "music", "devices", "timer", "homelab", "library", "settings"] as const;
+export const TRACK_RE = /^spotify:track:[A-Za-z0-9]{22}$/;
+export const CONTEXT_RE = /^spotify:(playlist|album|artist|show):[A-Za-z0-9]{22}$/;
 export type Action =
   | { type: "url"; url: string }
   | { type: "module"; module: (typeof MODULES)[number] }
   | { type: "spotify-device"; deviceName: string }
   | { type: "announce"; message: string }
+  | { type: "spotify-play"; uri: string; label?: string }
   | { type: "scene"; steps: Action[] }
   | { type: "none" };
 export interface Shortcut { label: string; action: Action }
@@ -45,6 +48,8 @@ export function validateAction(a: unknown, nested = false): string | null {
       return keys === "deviceName,type" && str(a.deviceName, 200) ? null : "invalid device name";
     case "announce":
       return keys === "message,type" && str(a.message, 300) ? null : "invalid announce message";
+    case "spotify-play":
+      return (keys === "type,uri" || (keys === "label,type,uri" && str(a.label, 40))) && typeof a.uri === "string" && (TRACK_RE.test(a.uri) || CONTEXT_RE.test(a.uri)) ? null : "invalid spotify-play action";
     case "scene": {
       if (nested) return "scenes cannot be nested";
       if (keys !== "steps,type" || !Array.isArray(a.steps) || a.steps.length > 10) return "scene needs at most 10 steps";

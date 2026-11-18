@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { fmtTime, useNow } from "./App";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, homelabIssues, useHa, useHomelab, useSettings, useSpotify, type Action, type Device, type Module, type Playback, type Settings, type Shortcut, type SpotifyState } from "./api";
+import { api, homelabIssues, useHa, useHomelab, useSettings, useSpotify, type Action, type Device, type Item, type Module, type PlaylistInfo, type RecentTrack, type Playback, type Settings, type Shortcut, type SpotifyState } from "./api";
 
 export const Icon = ({ d, stroke }: { d: string; stroke?: boolean }) => (
   <svg viewBox="0 0 24 24" className="h-6 w-6" fill={stroke ? "none" : "currentColor"} stroke={stroke ? "currentColor" : "none"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -14,6 +14,7 @@ const I = {
   prev: "M6 5h2v14H6zM20 5v14L9 12z",
   next: "M16 5h2v14h-2zM4 5v14l11-7z",
   shuffle: "M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5",
+  heart: "M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z",
   repeat: "M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3",
 };
 
@@ -43,19 +44,29 @@ const mmss = (ms: number) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
 
-function Progress({ p, at }: { p: Playback; at: number }) {
+function Progress({ p, at, onSeek }: { p: Playback; at: number; onSeek: (ms: number) => void }) {
+  const [drag, setDrag] = useState<number | null>(null);
+  const frac = (e: React.PointerEvent<HTMLDivElement>) => { const r = e.currentTarget.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); };
   const [, tick] = useState(0);
   useEffect(() => {
     if (!p.is_playing) return;
     const t = setInterval(() => tick((n) => n + 1), 500);
     return () => clearInterval(t);
   }, [p.is_playing]);
-  const cur = Math.min(p.duration_ms, p.progress_ms + (p.is_playing ? Date.now() - at : 0));
+  const cur = drag !== null ? drag * p.duration_ms : Math.min(p.duration_ms, p.progress_ms + (p.is_playing ? Date.now() - at : 0));
   return (
     <div className="flex items-center gap-2 text-sm tabular-nums text-dim">
       <span>{mmss(cur)}</span>
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-raised">
-        <div className="h-full bg-accent" style={{ width: `${p.duration_ms ? (cur / p.duration_ms) * 100 : 0}%` }} />
+      <div
+        className="flex h-11 flex-1 touch-none items-center" role="slider" aria-label="Seek" aria-valuemin={0} aria-valuemax={p.duration_ms} aria-valuenow={Math.round(cur)}
+        onPointerDown={(e) => { if (!p.duration_ms) return; e.currentTarget.setPointerCapture(e.pointerId); setDrag(frac(e)); }}
+        onPointerMove={(e) => drag !== null && setDrag(frac(e))}
+        onPointerUp={(e) => { if (drag === null) return; onSeek(Math.round(frac(e) * p.duration_ms)); setDrag(null); }}
+        onPointerCancel={() => setDrag(null)}
+      >
+        <div className="h-2 w-full overflow-hidden rounded-full bg-raised">
+          <div className="h-full bg-accent" style={{ width: `${p.duration_ms ? (cur / p.duration_ms) * 100 : 0}%` }} />
+        </div>
       </div>
       <span>{mmss(p.duration_ms)}</span>
     </div>
@@ -82,9 +93,10 @@ function NowPlaying({ big }: { big?: boolean }) {
           <p className="truncate text-dim">{p.artists.join(", ")}{p.album && !big ? "" : ""}</p>
           {big && <p className="truncate text-sm text-dim">{p.album}{p.device ? ` - ${p.device}` : ""}</p>}
         </div>
-        <Progress p={p} at={q.dataUpdatedAt} />
+        <Progress p={p} at={q.dataUpdatedAt} onSeek={(ms) => run({ method: "PUT", path: "/api/spotify/seek", body: { positionMs: ms }, patch: { progress_ms: ms } })} />
         <div className="flex items-center justify-center gap-3">
           {big && <button className={`btn ${p.shuffle ? "btn-accent" : ""}`} aria-label="Shuffle" aria-pressed={p.shuffle} onClick={() => run({ method: "PUT", path: "/api/spotify/shuffle", body: { state: !p.shuffle }, patch: { shuffle: !p.shuffle } })}><Icon d={I.shuffle} stroke /></button>}
+          {p.uri && /^spotify:track:/.test(p.uri) && <button className={`btn ${p.liked ? "btn-accent" : ""}`} aria-label={p.liked ? "Unlike" : "Like"} aria-pressed={!!p.liked} onClick={() => run({ method: "PUT", path: "/api/spotify/like", body: { uri: p.uri, liked: !p.liked }, patch: { liked: !p.liked } })}><svg viewBox="0 0 24 24" className="h-6 w-6" fill={p.liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden><path d={I.heart} /></svg></button>}
           <button className="btn" aria-label="Previous" onClick={() => run({ method: "PUT", path: "/api/spotify/previous" })}><Icon d={I.prev} /></button>
           <button className="btn btn-accent min-h-14 min-w-16" aria-label={p.is_playing ? "Pause" : "Play"} onClick={() => run({ method: "PUT", path: p.is_playing ? "/api/spotify/pause" : "/api/spotify/play", patch: { is_playing: !p.is_playing } })}><Icon d={p.is_playing ? I.pause : I.play} /></button>
           <button className="btn" aria-label="Next" onClick={() => run({ method: "PUT", path: "/api/spotify/next" })}><Icon d={I.next} /></button>
@@ -112,7 +124,7 @@ function runClient(a: Action, go: (p: string) => void): boolean {
   if (a.type === "url") window.open(a.url, "_blank", "noopener");
   else if (a.type === "module") go(a.module === "dashboard" ? "/" : "/" + a.module);
   else if (a.type === "scene") return a.steps.map((s) => runClient(s, go)).some(Boolean);
-  return a.type === "spotify-device" || a.type === "announce";
+  return a.type === "spotify-device" || a.type === "announce" || a.type === "spotify-play";
 }
 
 function Shortcuts({ go }: { go: (p: string) => void }) {
@@ -225,7 +237,105 @@ export function Dashboard({ go }: { go: (p: string) => void }) {
   );
 }
 
-export const Music = () => <div className="h-full"><NowPlaying big /></div>;
+const reconnectBanner = (s: SpotifyState | undefined) =>
+  s?.connected && !s.scopesOk ? <p role="status" className="card border border-accent text-accent">Reconnect Spotify for new features. <a className="underline" href="/api/spotify/login">Reconnect</a></p> : null;
+
+const Art = ({ src }: { src: string | null }) => (src ? <img src={src} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" /> : <div className="h-12 w-12 shrink-0 rounded-lg bg-raised" />);
+
+function useAddQueue() {
+  return useMutation({ mutationFn: (uri: string) => api("POST", "/api/spotify/queue", { uri }) });
+}
+
+function UpNext() {
+  const sp = useSpotify();
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["queue"], queryFn: () => api<{ queue: Item[] }>("GET", "/api/spotify/queue"), refetchInterval: () => (document.hidden ? false : 10_000), enabled: !!sp.data?.connected, retry: false });
+  const trackUri = sp.data?.playback?.uri;
+  useEffect(() => { void qc.invalidateQueries({ queryKey: ["queue"] }); }, [trackUri, qc]);
+  return (
+    <section className="card flex min-h-0 flex-col gap-2 overflow-y-auto" aria-label="Up next">
+      <h2 className="text-lg font-semibold">Up next</h2>
+      {q.isError ? <p role="status" className="text-dim">{q.error.message}</p>
+        : !q.data ? <p className="text-dim">Loading...</p>
+        : q.data.queue.length === 0 ? <p className="text-dim">Queue is empty.</p>
+        : q.data.queue.map((t, i) => (
+          <div key={i} className="flex min-h-12 items-center gap-3">
+            <Art src={t.art} />
+            <div className="min-w-0"><p className="truncate">{t.name}</p><p className="truncate text-sm text-dim">{t.artists.join(", ")}</p></div>
+          </div>
+        ))}
+    </section>
+  );
+}
+
+export const Music = () => (
+  <div className="grid h-full gap-2 landscape:grid-cols-[3fr_2fr] portrait:grid-rows-[auto_1fr]">
+    <NowPlaying big />
+    <UpNext />
+  </div>
+);
+
+export function Library() {
+  const sp = useSpotify();
+  const qc = useQueryClient();
+  const settings = useSettings().data;
+  const [tab, setTab] = useState<"playlists" | "recent">("playlists");
+  const [msg, setMsg] = useState("");
+  const on = !!sp.data?.connected;
+  const pl = useQuery({ queryKey: ["playlists"], queryFn: () => api<{ playlists: PlaylistInfo[] }>("GET", "/api/spotify/playlists"), enabled: on && tab === "playlists", retry: false });
+  const rc = useQuery({ queryKey: ["recent"], queryFn: () => api<{ tracks: RecentTrack[] }>("GET", "/api/spotify/recent"), enabled: on && tab === "recent", retry: false });
+  const afterPlay = () => void setTimeout(() => qc.invalidateQueries({ queryKey: ["spotify"] }), 500);
+  const play = useMutation({
+    mutationFn: (v: { path: string; body: unknown }) => api("PUT", v.path, v.body),
+    onMutate: () => setMsg(""),
+    onSuccess: afterPlay,
+    onError: (e) => setMsg(e.message),
+  });
+  const add = useAddQueue();
+  const pin = useMutation({
+    mutationFn: (s: Settings) => api<Settings>("PUT", "/api/settings", s),
+    onSuccess: (s) => { qc.setQueryData(["settings"], s); setMsg("Pinned."); },
+    onError: (e) => setMsg(e.message),
+  });
+  const doPin = (p: PlaylistInfo) => {
+    const i = settings?.shortcuts.findIndex((s) => s.action.type === "none") ?? -1;
+    if (!settings || i < 0) return setMsg("No free shortcut slot — edit one in Settings");
+    pin.mutate({ ...settings, shortcuts: settings.shortcuts.map((s, j) => (j === i ? { label: p.name.slice(0, 40), action: { type: "spotify-play", uri: p.uri } } : s)) });
+  };
+  if (sp.data && !sp.data.connected) return <Notice>Spotify is not connected. Connect it in Settings.</Notice>;
+  const err = tab === "playlists" ? pl.error : rc.error;
+  return (
+    <div className="mx-auto flex max-w-3xl flex-col gap-2">
+      {reconnectBanner(sp.data)}
+      <div className="flex gap-2">
+        <button className={`btn flex-1 ${tab === "playlists" ? "btn-accent" : ""}`} aria-pressed={tab === "playlists"} onClick={() => setTab("playlists")}>Playlists</button>
+        <button className={`btn flex-1 ${tab === "recent" ? "btn-accent" : ""}`} aria-pressed={tab === "recent"} onClick={() => setTab("recent")}>Recently played</button>
+      </div>
+      {msg && <p role="status" className="text-sm text-accent">{msg}</p>}
+      {err && <Notice>{err.message}</Notice>}
+      {tab === "playlists" && pl.data?.playlists.length === 0 && <Notice>No playlists.</Notice>}
+      {tab === "playlists" && pl.data?.playlists.map((p) => (
+        <div key={p.id} className="flex items-center gap-2">
+          <button className="btn flex-1 justify-start gap-3 text-left" aria-label={`Play ${p.name}`} onClick={() => play.mutate({ path: "/api/spotify/play-context", body: { contextUri: p.uri } })}>
+            <Art src={p.art} />
+            <span className="min-w-0"><span className="block truncate">{p.name}</span><span className="block truncate text-sm text-dim">{p.owner} - {p.count} tracks</span></span>
+          </button>
+          <button className="btn px-3" aria-label={`Pin ${p.name} as shortcut`} onClick={() => doPin(p)}>Pin</button>
+        </div>
+      ))}
+      {tab === "recent" && rc.data?.tracks.length === 0 && <Notice>Nothing played recently.</Notice>}
+      {tab === "recent" && rc.data?.tracks.map((t) => (
+        <div key={t.uri + t.playedAt} className="flex items-center gap-2">
+          <button className="btn flex-1 justify-start gap-3 text-left" aria-label={`Play ${t.name}`} onClick={() => play.mutate({ path: "/api/spotify/play-uris", body: { uris: [t.uri] } })}>
+            <Art src={t.art} />
+            <span className="min-w-0"><span className="block truncate">{t.name}</span><span className="block truncate text-sm text-dim">{t.artists.join(", ")}</span></span>
+          </button>
+          <button className="btn px-3" aria-label={`Add ${t.name} to queue`} onClick={() => { setMsg(""); add.mutate(t.uri, { onSuccess: () => setMsg("Added to queue."), onError: (e) => setMsg(e.message) }); }}>+ Queue</button>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function SpotifyDevices() {
   const q = useQuery({ queryKey: ["devices"], queryFn: () => api<{ devices: Device[] }>("GET", "/api/spotify/devices"), refetchInterval: 10_000 });
@@ -368,7 +478,7 @@ export function Homelab() {
 }
 
 const blank = (type: string): Action =>
-  type === "url" ? { type, url: "https://" } : type === "module" ? { type, module: "dashboard" } : type === "spotify-device" ? { type, deviceName: "" } : type === "announce" ? { type, message: "" } : type === "scene" ? { type, steps: [] } : { type: "none" };
+  type === "url" ? { type, url: "https://" } : type === "module" ? { type, module: "dashboard" } : type === "spotify-device" ? { type, deviceName: "" } : type === "announce" ? { type, message: "" } : type === "spotify-play" ? { type, uri: "spotify:playlist:" } : type === "scene" ? { type, steps: [] } : { type: "none" };
 
 function ActionEditor({ a, set, scene }: { a: Action; set: (a: Action) => void; scene: boolean }) {
   return (
@@ -379,15 +489,17 @@ function ActionEditor({ a, set, scene }: { a: Action; set: (a: Action) => void; 
         <option value="module">Go to module</option>
         <option value="spotify-device">Play on Spotify device</option>
         <option value="announce">Alexa announcement</option>
+        <option value="spotify-play">Play Spotify item</option>
         {scene && <option value="scene">Scene (several steps)</option>}
       </select>
       {a.type === "url" && <input className="input" aria-label="URL" value={a.url} onChange={(e) => set({ ...a, url: e.target.value })} />}
       {a.type === "module" && (
         <select className="input" aria-label="Module" value={a.module} onChange={(e) => set({ ...a, module: e.target.value as Module })}>
-          {["dashboard", "music", "devices", "timer", "homelab", "settings"].map((m) => <option key={m}>{m}</option>)}
+          {["dashboard", "music", "devices", "timer", "homelab", "library", "settings"].map((m) => <option key={m}>{m}</option>)}
         </select>
       )}
       {a.type === "spotify-device" && <input className="input" aria-label="Device name" placeholder="Device name" value={a.deviceName} onChange={(e) => set({ ...a, deviceName: e.target.value })} />}
+      {a.type === "spotify-play" && <input className="input" aria-label="Spotify URI" placeholder="spotify:playlist:..." value={a.uri} onChange={(e) => set({ ...a, uri: e.target.value.trim() })} />}
       {a.type === "announce" && <input className="input" aria-label="Announcement message" placeholder="Message" maxLength={300} value={a.message} onChange={(e) => set({ ...a, message: e.target.value })} />}
       {a.type === "scene" && (
         <div className="flex flex-col gap-2 border-l-2 border-line pl-3">
@@ -451,6 +563,7 @@ export function SettingsScreen({ onClock }: { onClock: () => void }) {
       <section className="card flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Spotify</h2>
         <p role="status" className="text-dim">{status}</p>
+        {reconnectBanner(s)}
         {s?.connected ? <button className="btn" onClick={() => disc.mutate()}>Disconnect</button> : <a className="btn btn-accent" href="/api/spotify/login">Connect Spotify</a>}
         {new URLSearchParams(location.search).get("spotify") === "failed" && <p role="alert" className="text-red-400">Spotify authorization failed.</p>}
       </section>

@@ -7,7 +7,7 @@ import { openKv } from "./db.ts";
 import { AppError, createSpotify } from "./spotify.ts";
 import { createHomelab, type HomelabCfg } from "./homelab.ts";
 import { createHomeAssistant, type HaCfg } from "./homeassistant.ts";
-import { DEFAULT_SETTINGS, validateSettings, type Action, type Settings } from "./actions.ts";
+import { CONTEXT_RE, DEFAULT_SETTINGS, TRACK_RE, validateSettings, type Action, type Settings } from "./actions.ts";
 
 export interface Config {
   password: string;
@@ -26,6 +26,8 @@ const COOKIE = "nexus_session";
 const OPEN = new Set(["/api/health", "/api/login", "/api/session"]);
 const SESSION_TTL = 365 * 24 * 3600 * 1000;
 const percent = { type: "object", required: ["percent"], additionalProperties: false, properties: { percent: { type: "integer", minimum: 0, maximum: 100 } } };
+const uriProp = (re: RegExp) => ({ type: "string", pattern: re.source });
+const body1 = (key: string, prop: object, extra: Record<string, object> = {}) => ({ type: "object", required: [key, ...Object.keys(extra)], additionalProperties: false, properties: { [key]: prop, ...extra } });
 const stateBody = (e: string[]) => ({ type: "object", required: ["state"], additionalProperties: false, properties: { state: e.length ? { enum: e } : { type: "boolean" } } });
 
 export async function buildApp(cfg: Config) {
@@ -112,9 +114,10 @@ export async function buildApp(cfg: Config) {
     const steps: Action[] = sc.action.type === "scene" ? sc.action.steps : [sc.action];
     const results = [];
     for (const s of steps) {
-      if (s.type !== "spotify-device" && s.type !== "announce") { results.push({ type: s.type, status: "client" }); continue; }
+      if (s.type !== "spotify-device" && s.type !== "announce" && s.type !== "spotify-play") { results.push({ type: s.type, status: "client" }); continue; }
       try {
         if (s.type === "announce") await ha.announce(s.message);
+        else if (s.type === "spotify-play") await spotify.playItem(s.uri);
         else await spotify.transferByName(s.deviceName);
         results.push({ type: s.type, status: "ok" });
       } catch (e) {
@@ -151,6 +154,18 @@ export async function buildApp(cfg: Config) {
   app.put("/api/spotify/volume", { schema: { body: percent } }, async (req) => (await spotify.cmd("PUT", "/me/player/volume", { volume_percent: String((req.body as { percent: number }).percent) }), ok));
   app.put("/api/spotify/shuffle", { schema: { body: stateBody([]) } }, async (req) => (await spotify.cmd("PUT", "/me/player/shuffle", { state: String((req.body as { state: boolean }).state) }), ok));
   app.put("/api/spotify/repeat", { schema: { body: stateBody(["off", "context", "track"]) } }, async (req) => (await spotify.cmd("PUT", "/me/player/repeat", { state: (req.body as { state: string }).state }), ok));
+  app.put("/api/spotify/seek", { schema: { body: body1("positionMs", { type: "integer", minimum: 0 }) } }, async (req) => (await spotify.cmd("PUT", "/me/player/seek", { position_ms: String((req.body as { positionMs: number }).positionMs) }), ok));
+  app.get("/api/spotify/queue", async () => spotify.queue());
+  app.post("/api/spotify/queue", { schema: { body: body1("uri", uriProp(/^spotify:(track|episode):[A-Za-z0-9]{22}$/)) } }, async (req) => (await spotify.cmd("POST", "/me/player/queue", { uri: (req.body as { uri: string }).uri }), ok));
+  app.put("/api/spotify/like", { schema: { body: body1("uri", uriProp(TRACK_RE), { liked: { type: "boolean" } }) } }, async (req) => {
+    const b = req.body as { uri: string; liked: boolean };
+    await spotify.like(b.uri, b.liked);
+    return ok;
+  });
+  app.get("/api/spotify/playlists", async () => ({ playlists: await spotify.playlists() }));
+  app.get("/api/spotify/recent", async () => ({ tracks: await spotify.recent() }));
+  app.put("/api/spotify/play-context", { schema: { body: body1("contextUri", uriProp(CONTEXT_RE)) } }, async (req) => (await spotify.playItem((req.body as { contextUri: string }).contextUri), ok));
+  app.put("/api/spotify/play-uris", { schema: { body: { type: "object", required: ["uris"], additionalProperties: false, properties: { uris: { type: "array", minItems: 1, maxItems: 1, items: uriProp(TRACK_RE) } } } } }, async (req) => (await spotify.playItem((req.body as { uris: string[] }).uris[0]), ok));
   app.put("/api/spotify/transfer", { schema: { body: { type: "object", required: ["deviceId"], additionalProperties: false, properties: { deviceId: { type: "string", minLength: 1 }, play: { type: "boolean" } } } } }, async (req) => {
     const b = req.body as { deviceId: string; play?: boolean };
     await spotify.cmd("PUT", "/me/player", undefined, { device_ids: [b.deviceId], play: b.play ?? true });

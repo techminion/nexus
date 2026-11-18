@@ -18,12 +18,13 @@ export async function api<T = unknown>(method: string, path: string, body?: unkn
   return j as T;
 }
 
-export type Module = "dashboard" | "music" | "devices" | "timer" | "homelab" | "settings";
+export type Module = "dashboard" | "music" | "devices" | "timer" | "homelab" | "library" | "settings";
 export type Action =
   | { type: "url"; url: string }
   | { type: "module"; module: Module }
   | { type: "spotify-device"; deviceName: string }
   | { type: "announce"; message: string }
+  | { type: "spotify-play"; uri: string; label?: string }
   | { type: "scene"; steps: Action[] }
   | { type: "none" };
 export interface Shortcut { label: string; action: Action }
@@ -32,12 +33,17 @@ export interface Playback {
   track: string | null; artists: string[]; album: string | null; art: string | null;
   progress_ms: number; duration_ms: number; is_playing: boolean; shuffle: boolean;
   repeat: "off" | "context" | "track"; volume: number | null; device: string | null;
+  uri: string | null; liked: boolean | null;
 }
 export interface SpotifyState {
   connected: boolean;
+  scopesOk: boolean;
   error: { code: string; message: string; retryAfter: number | null } | null;
   playback: Playback | null;
 }
+export interface Item { uri: string; name: string; artists: string[]; art: string | null }
+export interface PlaylistInfo { id: string; uri: string; name: string; art: string | null; owner: string; count: number }
+export interface RecentTrack extends Item { playedAt: string }
 export interface Device { id: string; name: string; type: string; active: boolean; volume: number | null }
 
 export const useSettings = () => useQuery({ queryKey: ["settings"], queryFn: () => api<Settings>("GET", "/api/settings") });

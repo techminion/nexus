@@ -155,3 +155,98 @@ test("HA adapter: origin-only URL, no redirects, real reachability without senso
     globalThis.fetch = realFetch;
   }
 });
+
+const TID = "4iV5W9uYEdYUVa79Axb7Rh";
+const PID = "37i9dQZF1DXcBWIGoYBM5M";
+
+test("spotify-play action validation", () => {
+  assert.equal(validateAction({ type: "spotify-play", uri: `spotify:playlist:${PID}` }), null);
+  assert.equal(validateAction({ type: "spotify-play", uri: `spotify:track:${TID}`, label: "x" }), null);
+  assert.equal(validateAction({ type: "scene", steps: [{ type: "spotify-play", uri: `spotify:album:${TID}` }] }), null);
+  assert.ok(validateAction({ type: "spotify-play", uri: `https://open.spotify.com/playlist/${PID}` }));
+  assert.ok(validateAction({ type: "spotify-play", uri: "spotify:playlist:short" }));
+  assert.ok(validateAction({ type: "spotify-play", uri: `spotify:episode:${TID}` }));
+  assert.ok(validateAction({ type: "spotify-play", uri: `spotify:playlist:${PID}`, extra: 1 }));
+  assert.ok(validateAction({ type: "spotify-play" }));
+  assert.ok(validateAction({ type: "spotify-play", uri: `spotify:track:${TID}`, label: "" }));
+});
+
+test("spotify new routes: schemas, Spotify calls, reauth, shortcut run", async () => {
+  const app = await buildApp({ password: "pw", secret: "s".repeat(32), dataDir: ":memory:" });
+  const r = await app.inject({ method: "POST", url: "/api/login", payload: { password: "pw" } });
+  const cookies = { [r.cookies[0].name]: r.cookies[0].value };
+  const put = (url: string, payload: unknown, method = "PUT") => app.inject({ method: method as "PUT", url, cookies, payload: payload as object });
+  for (const [m, u, p] of [
+    ["PUT", "/api/spotify/seek", { positionMs: -1 }], ["PUT", "/api/spotify/seek", { positionMs: 1.5 }], ["PUT", "/api/spotify/seek", {}],
+    ["POST", "/api/spotify/queue", { uri: `spotify:playlist:${PID}` }], ["POST", "/api/spotify/queue", { uri: "spotify:track:bad" }],
+    ["PUT", "/api/spotify/like", { uri: `spotify:episode:${TID}`, liked: true }], ["PUT", "/api/spotify/like", { uri: `spotify:track:${TID}` }],
+    ["PUT", "/api/spotify/play-context", { contextUri: `spotify:track:${TID}` }], ["PUT", "/api/spotify/play-context", { contextUri: `http://x/${PID}` }],
+    ["PUT", "/api/spotify/play-uris", { uris: [] }], ["PUT", "/api/spotify/play-uris", { uris: [`spotify:playlist:${PID}`] }],
+  ] as const) assert.equal((await put(u, p, m)).statusCode, 400, `${m} ${u} ${JSON.stringify(p)}`);
+  assert.equal((await app.inject({ method: "PUT", url: "/api/spotify/seek", payload: { positionMs: 1 } })).statusCode, 401);
+
+  // seed tokens with an old (base-scope only) grant by logging nothing: write via settings-free kv path is private, so use the API with a stub token endpoint
+  const calls: { url: string; method: string; body?: string }[] = [];
+  const realFetch = globalThis.fetch;
+  let scopeFail = false;
+  globalThis.fetch = async (u: any, init: any) => {
+    const url = String(u);
+    calls.push({ url, method: init?.method ?? "GET", body: init?.body });
+    if (url.includes("/me/player/play") || url.includes("/me/player/seek") || url.includes("/me/player/queue") && init?.method === "POST") return new Response(null, { status: 204 });
+    if (url.includes("/me/library") && init?.method !== "GET" && !init?.method) return Response.json([true]);
+    if (url.includes("/me/library")) return scopeFail ? Response.json({ error: { status: 403, message: "Insufficient client scope" } }, { status: 403 }) : init.method === "GET" ? Response.json([true]) : new Response(null, { status: 200 });
+    if (url.endsWith("/me/player")) return Response.json({ is_playing: true, progress_ms: 5, item: { uri: `spotify:track:${TID}`, name: "T", duration_ms: 100, artists: [{ name: "A" }], album: { name: "Al", images: [{ url: "http://insecure/x.jpg" }] } } });
+    if (url.includes("/me/playlists")) return scopeFail ? Response.json({ error: { status: 403, message: "Insufficient client scope" } }, { status: 403 }) : Response.json({ items: [{ id: PID, uri: `spotify:playlist:${PID}`, name: "P", images: [{ url: "https://i/x.jpg" }], owner: { display_name: "me" }, items: { total: 3 } }], next: null });
+    return new Response("{}", { status: 404 });
+  };
+  try {
+    // Connect via the real token path: stub the token endpoint is not wired for callback; seed through createSpotify on a shared kv instead.
+    const kv = openKv(":memory:");
+    kv.set("spotify", { access: "a", refresh: "r", expires: Date.now() + 3_600_000, scope: "user-read-playback-state" });
+    const sp = createSpotify(kv, { clientId: "c", publicUrl: "https://x" });
+    const st1 = (await sp.state()) as any;
+    assert.equal(st1.scopesOk, false);
+    assert.equal(st1.playback.art, null); // non-https art dropped
+    assert.equal(st1.playback.liked, true);
+    scopeFail = true;
+    await assert.rejects(sp.playlists(), (e: any) => e.code === "reauth" && /Reconnect Spotify in Settings/.test(e.message));
+    await assert.rejects(sp.like(`spotify:track:${TID}`, true), (e: any) => e.code === "reauth");
+    const kv2 = openKv(":memory:");
+    kv2.set("spotify", { access: "a", refresh: "r", expires: Date.now() + 3_600_000, scope: "user-read-playback-state" });
+    const sp2 = createSpotify(kv2, { clientId: "c", publicUrl: "https://x" });
+    const st2 = (await sp2.state()) as any;
+    assert.equal(st2.connected, true);
+    assert.equal(st2.error, null);
+    assert.equal(st2.playback.liked, null); // core playback still works
+    scopeFail = false;
+
+    calls.length = 0;
+    await sp.cmd("PUT", "/me/player/seek", { position_ms: "1234" });
+    await sp.cmd("POST", "/me/player/queue", { uri: `spotify:track:${TID}` });
+    await sp.like(`spotify:track:${TID}`, true);
+    await sp.like(`spotify:track:${TID}`, false);
+    await sp.playItem(`spotify:playlist:${PID}`);
+    await sp.playItem(`spotify:track:${TID}`);
+    const enc = encodeURIComponent(`spotify:track:${TID}`);
+    assert.deepEqual(calls.map((c) => `${c.method} ${c.url.replace("https://api.spotify.com/v1", "")}`), [
+      "PUT /me/player/seek?position_ms=1234",
+      `POST /me/player/queue?uri=${enc}`,
+      `PUT /me/library?uris=${enc}`,
+      `DELETE /me/library?uris=${enc}`,
+      "PUT /me/player/play", "PUT /me/player/play",
+    ]);
+    assert.deepEqual(JSON.parse(calls[4].body!), { context_uri: `spotify:playlist:${PID}` });
+    assert.deepEqual(JSON.parse(calls[5].body!), { uris: [`spotify:track:${TID}`] });
+    assert.deepEqual(await sp.playlists(), [{ id: PID, uri: `spotify:playlist:${PID}`, name: "P", art: "https://i/x.jpg", owner: "me", count: 3 }]);
+    assert.ok(calls.some((c) => c.url.endsWith("/me/playlists?limit=50&offset=0")));
+
+    // spotify-play shortcut runs server-side (app has no tokens, so the result is a clean error, not "client")
+    const settings = { ...DEFAULT_SETTINGS, shortcuts: DEFAULT_SETTINGS.shortcuts.map((s, i) => (i === 0 ? { label: "P", action: { type: "spotify-play", uri: `spotify:playlist:${PID}` } } : s)) };
+    assert.equal((await put("/api/settings", settings)).statusCode, 200);
+    const run = await app.inject({ method: "POST", url: "/api/shortcuts/0/run", cookies });
+    assert.deepEqual(run.json().results.map((x: any) => [x.type, x.status]), [["spotify-play", "error"]]);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  await app.close();
+});

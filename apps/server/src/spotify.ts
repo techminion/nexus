@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { Kv } from "./db.ts";
+import { TRACK_RE } from "./actions.ts";
 
 export class AppError extends Error {
   status: number;
@@ -13,8 +14,19 @@ export class AppError extends Error {
   }
 }
 
-interface Tokens { access: string; refresh: string; expires: number }
-const SCOPES = "user-read-playback-state user-modify-playback-state user-read-currently-playing";
+interface Tokens { access: string; refresh: string; expires: number; scope?: string }
+const BASE_SCOPES = "user-read-playback-state user-modify-playback-state user-read-currently-playing";
+const NEW_SCOPES = "user-library-read user-library-modify playlist-read-private playlist-read-collaborative user-read-recently-played";
+const SCOPES = `${BASE_SCOPES} ${NEW_SCOPES}`;
+const REAUTH = "Reconnect Spotify in Settings to enable this (new permissions).";
+// Endpoints needing the new scopes; a 403 here with an old token means "reconnect", not "premium".
+const NEEDS_NEW_SCOPES = /^\/me\/(library|playlists|player\/recently-played)/;
+const https = (u: unknown): string | null => (typeof u === "string" && u.startsWith("https://") ? u : null);
+const mapItem = (it: any) => ({
+  uri: it?.uri as string, name: (it?.name ?? "Unknown") as string,
+  artists: (it?.artists ?? (it?.show?.publisher ? [{ name: it.show.publisher }] : [])).map((a: any) => a.name) as string[],
+  art: https(it?.album?.images?.[0]?.url ?? it?.images?.[0]?.url),
+});
 const b64u = (b: Buffer) => b.toString("base64url");
 
 export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: string }) {
@@ -23,8 +35,11 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
   let gen = 0; // bumped on disconnect so in-flight refreshes cannot resurrect tokens
   let refreshing: Promise<Tokens> | undefined;
   let cache: { at: number; value: unknown } | undefined;
+  let likedCache: { uri: string; value: boolean | null } | undefined; // one library check per track change
+  const lists = new Map<string, { at: number; value: unknown }>(); // playlists/recent, ~60s
   const redirectUri = () => `${env.publicUrl}/api/spotify/callback`;
   const tokens = () => kv.get<Tokens>("spotify");
+  const scopesOk = () => { const g = tokens()?.scope?.split(" ") ?? []; return NEW_SCOPES.split(" ").every((s) => g.includes(s)); };
 
   function login(): string {
     if (!env.clientId || !env.publicUrl) throw new AppError(503, "not_configured", "Spotify is not configured on the server (SPOTIFY_CLIENT_ID / PUBLIC_URL).");
@@ -57,8 +72,8 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
       if (r.status === 400 || r.status === 401) throw new AppError(401, "auth", "Spotify authorization failed or expired. Reconnect Spotify.");
       throw new AppError(502, "spotify", `Spotify token endpoint returned ${r.status}.`);
     }
-    const j = (await r.json()) as { access_token: string; refresh_token?: string; expires_in: number };
-    return { access: j.access_token, refresh: j.refresh_token ?? tokens()?.refresh ?? "", expires: Date.now() + j.expires_in * 1000 - 30_000 };
+    const j = (await r.json()) as { access_token: string; refresh_token?: string; expires_in: number; scope?: string };
+    return { access: j.access_token, refresh: j.refresh_token ?? tokens()?.refresh ?? "", expires: Date.now() + j.expires_in * 1000 - 30_000, scope: j.scope ?? tokens()?.scope };
   }
 
   async function callback(code: string, state: string): Promise<void> {
@@ -66,6 +81,8 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
     pending.delete(state);
     if (!p || p.exp < Date.now()) throw new AppError(400, "bad_state", "Invalid or expired authorization state.");
     kv.set("spotify", await tokenRequest({ grant_type: "authorization_code", code, redirect_uri: redirectUri(), code_verifier: p.verifier }));
+    likedCache = undefined;
+    lists.clear();
   }
 
   function rateLimited(r: Response) {
@@ -119,6 +136,9 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
       return api(method, path, opts, true);
     }
     if (r.status === 429) throw rateLimited(r);
+    const scoped = NEEDS_NEW_SCOPES.test(path);
+    const noScope = scoped && (r.status === 401 || r.status === 403) && (!scopesOk() || /scope/i.test(await r.text().catch(() => "")));
+    if (noScope) throw new AppError(403, "reauth", REAUTH);
     if (r.status === 401) throw new AppError(401, "auth", "Spotify authorization expired. Reconnect Spotify.");
     if (r.status === 404) throw new AppError(404, "no_device", "No active Spotify device. Open Spotify on a device or pick one in Devices.");
     if (r.status === 403) throw new AppError(403, "premium", "Spotify refused this action (Premium is required for playback control).");
@@ -136,7 +156,9 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
       track: it?.name ?? null,
       artists: (it?.artists ?? []).map((a: any) => a.name) as string[],
       album: it?.album?.name ?? it?.show?.name ?? null,
-      art: it?.album?.images?.[0]?.url ?? it?.images?.[0]?.url ?? null,
+      art: https(it?.album?.images?.[0]?.url ?? it?.images?.[0]?.url),
+      uri: (it?.uri ?? null) as string | null,
+      liked: null as boolean | null,
       progress_ms: j.progress_ms ?? 0,
       duration_ms: it?.duration_ms ?? 0,
       is_playing: !!j.is_playing,
@@ -148,18 +170,71 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
   }
 
   async function state() {
-    if (!tokens()) return { connected: false, error: null, playback: null };
+    if (!tokens()) return { connected: false, scopesOk: false, error: null, playback: null };
     if (cache && Date.now() - cache.at < 1000) return cache.value;
     let value;
     try {
-      value = { connected: true, error: null, playback: mapPlayback(await api("GET", "/me/player")) };
+      const playback = mapPlayback(await api("GET", "/me/player"));
+      if (playback?.uri && TRACK_RE.test(playback.uri)) playback.liked = await likedFor(playback.uri);
+      value = { connected: true, scopesOk: scopesOk(), error: null, playback };
     } catch (e) {
       if (!(e instanceof AppError)) throw e;
-      value = { connected: !!tokens(), error: { code: e.code, message: e.message, retryAfter: e.retryAfter ?? null }, playback: null };
+      value = { connected: !!tokens(), scopesOk: scopesOk(), error: { code: e.code, message: e.message, retryAfter: e.retryAfter ?? null }, playback: null };
     }
     cache = { at: Date.now(), value };
     return value;
   }
+
+  // Failures (no scope, 429) must not break playback state: liked is just unknown.
+  async function likedFor(uri: string): Promise<boolean | null> {
+    if (likedCache?.uri === uri) return likedCache.value;
+    try {
+      const j = await api("GET", "/me/library/contains", { query: { uris: uri } });
+      likedCache = { uri, value: Array.isArray(j) ? !!j[0] : null };
+    } catch (e) {
+      if (!(e instanceof AppError)) throw e;
+      if (e.code === "rate_limited") return null;
+      likedCache = { uri, value: null };
+    }
+    return likedCache.value;
+  }
+
+  async function like(uri: string, liked: boolean) {
+    await cmd(liked ? "PUT" : "DELETE", "/me/library", { uris: uri });
+    likedCache = { uri, value: liked };
+  }
+
+  async function queue() {
+    const j = await api("GET", "/me/player/queue");
+    return { currently: j?.currently_playing ? mapItem(j.currently_playing) : null, queue: ((j?.queue ?? []) as any[]).slice(0, 20).map(mapItem) };
+  }
+
+  async function cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const c = lists.get(key);
+    if (c && Date.now() - c.at < 60_000) return c.value as T;
+    const value = await fn();
+    lists.set(key, { at: Date.now(), value });
+    return value;
+  }
+
+  const playlists = () => cached("playlists", async () => {
+    const out = [];
+    for (let offset = 0; offset < 100; offset += 50) {
+      const j = await api("GET", "/me/playlists", { query: { limit: "50", offset: String(offset) } });
+      for (const p of j?.items ?? []) {
+        if (p) out.push({ id: p.id as string, uri: p.uri as string, name: (p.name ?? "Untitled") as string, art: https(p.images?.[0]?.url), owner: (p.owner?.display_name ?? p.owner?.id ?? "") as string, count: (p.items?.total ?? p.tracks?.total ?? 0) as number });
+      }
+      if (!j?.next) break;
+    }
+    return out;
+  });
+
+  const recent = () => cached("recent", async () => {
+    const j = await api("GET", "/me/player/recently-played", { query: { limit: "20" } });
+    return ((j?.items ?? []) as any[]).map((x) => ({ ...mapItem(x.track), playedAt: x.played_at as string }));
+  });
+
+  const playItem = (uri: string) => cmd("PUT", "/me/player/play", undefined, TRACK_RE.test(uri) ? { uris: [uri] } : { context_uri: uri });
 
   async function devices() {
     const j = await api("GET", "/me/player/devices");
@@ -179,7 +254,7 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
   }
 
   return {
-    login, callback, state, devices, cmd, transferByName,
-    disconnect: () => { gen++; kv.del("spotify"); cache = undefined; },
+    login, callback, state, devices, cmd, transferByName, like, queue, playlists, recent, playItem,
+    disconnect: () => { gen++; kv.del("spotify"); cache = undefined; likedCache = undefined; lists.clear(); },
   };
 }
