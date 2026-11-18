@@ -1,12 +1,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, useSettings, useSpotify, type Module } from "./api";
-import { Dashboard, Devices, Music, SettingsScreen } from "./screens";
+import { Dashboard, Devices, Music, SettingsScreen, Timers } from "./screens";
 
 const NAV: { id: Module; label: string; path: string }[] = [
   { id: "dashboard", label: "Dashboard", path: "/" },
   { id: "music", label: "Music", path: "/music" },
   { id: "devices", label: "Devices", path: "/devices" },
+  { id: "timer", label: "Timer", path: "/timer" },
   { id: "settings", label: "Settings", path: "/settings" },
 ];
 const moduleOf = (p: string): Module => NAV.find((n) => n.path === p)?.id ?? "dashboard";
@@ -102,6 +103,8 @@ function Shell({ path, go }: { path: string; go: (p: string) => void }) {
           {mod === "dashboard" && <Dashboard go={go} />}
           {mod === "music" && <Music />}
           {mod === "devices" && <Devices />}
+          {/* Kept mounted so a running timer survives navigation. */}
+          <div className={mod === "timer" ? "h-full" : "hidden"}><Timers /></div>
           {mod === "settings" && <SettingsScreen onClock={() => setFull(true)} />}
         </main>
       </div>

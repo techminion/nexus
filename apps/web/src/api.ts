@@ -18,7 +18,7 @@ export async function api<T = unknown>(method: string, path: string, body?: unkn
   return j as T;
 }
 
-export type Module = "dashboard" | "music" | "devices" | "settings";
+export type Module = "dashboard" | "music" | "devices" | "timer" | "settings";
 export type Action =
   | { type: "url"; url: string }
   | { type: "module"; module: Module }

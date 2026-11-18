@@ -1,4 +1,4 @@
-export const MODULES = ["dashboard", "music", "devices", "settings"] as const;
+export const MODULES = ["dashboard", "music", "devices", "timer", "settings"] as const;
 export type Action =
   | { type: "url"; url: string }
   | { type: "module"; module: (typeof MODULES)[number] }
