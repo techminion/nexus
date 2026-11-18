@@ -84,10 +84,6 @@ function Shell({ path, go }: { path: string; go: (p: string) => void }) {
     <div className="flex h-full flex-col">
       <header className="flex min-h-12 items-center justify-between gap-3 px-4 py-1">
         <span className="text-xl font-bold text-accent">Nexus</span>
-        <span className="flex items-baseline gap-3">
-          <span className="text-2xl font-semibold tabular-nums">{fmtTime(now, h24)}</span>
-          <span className="hidden text-dim sm:inline">{now.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" })}</span>
-        </span>
         <span className="flex gap-3">
           <Dot ok={!offline} label="Server" />
           <Dot ok={sp.data ? sp.data.connected && !sp.data.error : null} label="Spotify" />

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { fmtTime, useNow } from "./App";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, useSettings, useSpotify, type Action, type Device, type Module, type Playback, type Settings, type Shortcut, type SpotifyState } from "./api";
 
@@ -141,49 +142,24 @@ function Shortcuts({ go }: { go: (p: string) => void }) {
   );
 }
 
-function TimerWidget() {
-  const [mode, setMode] = useState<"stopwatch" | "timer">("stopwatch");
-  const [running, setRunning] = useState(false);
-  const [now, setNow] = useState(Date.now());
-  const ref = useRef({ start: 0, base: 0, target: 0 }); // stopwatch: elapsed = base + (now-start); timer: remaining = target - now
-  useEffect(() => {
-    if (!running) return;
-    const t = setInterval(() => setNow(Date.now()), 200);
-    return () => clearInterval(t);
-  }, [running]);
-  const r = ref.current;
-  const value = mode === "stopwatch" ? r.base + (running ? now - r.start : 0) : running ? Math.max(0, r.target - now) : r.base;
-  useEffect(() => {
-    if (mode === "timer" && running && value === 0) {
-      setRunning(false);
-      r.base = 0;
-      navigator.vibrate?.([300, 150, 300]);
-    }
-  }, [mode, running, value, r]);
-  const toggle = () => {
-    const t = Date.now();
-    setNow(t);
-    if (!running) { r.start = t; r.target = t + r.base; }
-    else r.base = mode === "stopwatch" ? r.base + t - r.start : Math.max(0, r.target - t);
-    setRunning(!running);
-  };
-  const reset = () => { r.base = 0; setRunning(false); };
-  const set = (m: "stopwatch" | "timer") => { reset(); setMode(m); };
-  const addMin = (m: number) => { r.base += m * 60_000; if (running) r.target += m * 60_000; setNow(Date.now()); };
-  const done = mode === "timer" && !running && value === 0;
+function ClockCalendar() {
+  const now = useNow();
+  const h24 = useSettings().data?.clock24h ?? true;
+  const y = now.getFullYear(), m = now.getMonth(), today = now.getDate();
+  const lead = (new Date(y, m, 1).getDay() + 6) % 7; // Monday-first grid
+  const days = new Date(y, m + 1, 0).getDate();
+  const cells = [...Array(lead).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)];
   return (
-    <section className="card flex flex-col gap-2" aria-label="Timer">
-      <div className="flex items-center justify-between gap-2">
-        <span className={`text-3xl font-semibold tabular-nums ${done ? "" : ""}`}>{mmss(value)}</span>
-        <div className="flex gap-1">
-          <button className={`btn px-3 text-sm ${mode === "stopwatch" ? "btn-accent" : ""}`} onClick={() => set("stopwatch")}>Stopwatch</button>
-          <button className={`btn px-3 text-sm ${mode === "timer" ? "btn-accent" : ""}`} onClick={() => set("timer")}>Timer</button>
-        </div>
+    <section className="card flex flex-col gap-2" aria-label="Clock and calendar">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-4xl font-semibold tabular-nums">{fmtTime(now, h24)}</span>
+        <span className="text-dim">{now.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</span>
       </div>
-      <div className="flex gap-2">
-        <button className="btn btn-accent flex-1" onClick={toggle} disabled={mode === "timer" && !running && r.base === 0}>{running ? "Stop" : "Start"}</button>
-        {mode === "timer" && [1, 5, 10].map((m) => <button key={m} className="btn px-3" onClick={() => addMin(m)}>+{m}m</button>)}
-        <button className="btn" onClick={reset}>Reset</button>
+      <div className="grid grid-cols-7 gap-1 text-center text-sm tabular-nums" role="grid" aria-label={now.toLocaleDateString([], { month: "long", year: "numeric" })}>
+        {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => <span key={d} className="text-dim">{d}</span>)}
+        {cells.map((d, i) => (
+          <span key={i} aria-current={d === today ? "date" : undefined} className={`rounded-md py-0.5 ${d === today ? "bg-accent font-bold text-black" : ""}`}>{d ?? ""}</span>
+        ))}
       </div>
     </section>
   );
@@ -195,7 +171,7 @@ export function Dashboard({ go }: { go: (p: string) => void }) {
       <NowPlaying />
       <div className="flex min-h-0 flex-col gap-2 overflow-y-auto">
         <Shortcuts go={go} />
-        <TimerWidget />
+        <ClockCalendar />
       </div>
     </div>
   );
