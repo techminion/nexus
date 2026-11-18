@@ -12,6 +12,8 @@ const app = await buildApp({
   dataDir: process.env.NEXUS_DATA_DIR ?? "./data",
   clientId: process.env.SPOTIFY_CLIENT_ID,
   publicUrl: process.env.PUBLIC_URL?.replace(/\/$/, ""),
+  homelab: { containersFile: process.env.NEXUS_CONTAINERS_FILE, hosts: process.env.NEXUS_HOSTS },
+  ha: { url: process.env.HA_URL, token: process.env.HA_TOKEN, sensors: process.env.HA_SENSORS, announceService: process.env.HA_ANNOUNCE_SERVICE },
   // dev: ../../web/dist relative to src; prod image sets WEB_DIST
   webDist: process.env.WEB_DIST ?? fileURLToPath(new URL("../../web/dist", import.meta.url)),
 });

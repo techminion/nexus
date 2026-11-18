@@ -1,0 +1,19 @@
+[Unit]
+Description=Home Assistant (Alexa bridge for Nexus)
+After=network-online.target
+
+[Container]
+ContainerName=homeassistant
+Image=ghcr.io/home-assistant/home-assistant:stable
+Network=nexus.network
+PublishPort=8123:8123
+Volume=homeassistant-config:/config
+Environment=TZ=Asia/Kolkata
+
+[Service]
+Restart=always
+RestartSec=10
+TimeoutStartSec=600
+
+[Install]
+WantedBy=multi-user.target

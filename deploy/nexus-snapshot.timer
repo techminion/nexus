@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh Nexus container snapshot every 30s
+
+[Timer]
+OnBootSec=15s
+OnUnitActiveSec=30s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

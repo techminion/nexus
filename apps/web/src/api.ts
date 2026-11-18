@@ -18,11 +18,12 @@ export async function api<T = unknown>(method: string, path: string, body?: unkn
   return j as T;
 }
 
-export type Module = "dashboard" | "music" | "devices" | "timer" | "settings";
+export type Module = "dashboard" | "music" | "devices" | "timer" | "homelab" | "settings";
 export type Action =
   | { type: "url"; url: string }
   | { type: "module"; module: Module }
   | { type: "spotify-device"; deviceName: string }
+  | { type: "announce"; message: string }
   | { type: "scene"; steps: Action[] }
   | { type: "none" };
 export interface Shortcut { label: string; action: Action }
@@ -54,3 +55,15 @@ export const useSpotify = () =>
       return d?.playback?.is_playing ? 2_000 : 10_000;
     },
   });
+
+export interface Homelab {
+  pi: {
+    cpuPercent: number | null; mem: { totalMb: number; usedMb: number } | null; disk: { totalGb: number; usedGb: number } | null;
+    tempC: number | null; uptimeSec: number | null; load: number[] | null;
+  };
+  containers: { name: string; image: string; state: string; status: string }[] | null;
+  snapshotAge: number | null;
+  error: string | null;
+  hosts: { name: string; target: string; up: boolean; latencyMs: number | null }[];
+}
+export interface HaStatus { configured: boolean; reachable: boolean; error: string | null; sensors: { id: string; name: string; state: string; unit: string | null }[] }

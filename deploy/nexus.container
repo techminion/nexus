@@ -8,6 +8,8 @@ Image=localhost/nexus:latest
 Pull=never
 Network=nexus.network
 Volume=nexus-data:/data
+# Directory (not file) mount so atomic replaces by nexus-snapshot are visible.
+Volume=/run/nexus:/run/nexus:ro
 EnvironmentFile=/etc/nexus/nexus.env
 
 [Service]

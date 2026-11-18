@@ -10,6 +10,12 @@ Desk dashboard: Spotify remote, clock/timer, five shortcuts. React + Vite web ap
 | `SESSION_SECRET` | yes | Signs the session cookie (use 32+ random chars). |
 | `SPOTIFY_CLIENT_ID` | for Spotify | PKCE, no client secret. |
 | `PUBLIC_URL` | for Spotify | e.g. `https://192.168.31.128`; redirect URI is `PUBLIC_URL/api/spotify/callback`. |
+| `NEXUS_CONTAINERS_FILE` | no | `podman ps -a --format json` snapshot written by a host timer, default `/run/nexus/containers.json`. |
+| `NEXUS_HOSTS` | no | Hosts to TCP-check: `name=host:port,...` e.g. `nas=192.168.31.10:22`. |
+| `HA_URL` | for Alexa | Home Assistant base URL, e.g. `http://homeassistant:8123`. |
+| `HA_TOKEN` | for Alexa | HA long-lived access token (secret, never returned by the API). |
+| `HA_SENSORS` | no | Comma-separated allowlist of entity ids shown on Devices, e.g. `sensor.echo_dot_temperature`. |
+| `HA_ANNOUNCE_SERVICE` | for announce | `domain.service`, e.g. `notify.alexa_media_echo_dot`. |
 | `PORT` | no | default 3000 |
 | `NEXUS_DATA_DIR` | no | SQLite location, default `./data` (`/data` in the image) |
 

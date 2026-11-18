@@ -1,0 +1,6 @@
+[Unit]
+Description=Snapshot container status for Nexus (read-only feed, no socket exposure)
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'podman ps -a --format json > /run/nexus/containers.json.tmp && mv /run/nexus/containers.json.tmp /run/nexus/containers.json'

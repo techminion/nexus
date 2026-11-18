@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { fmtTime, useNow } from "./App";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, useSettings, useSpotify, type Action, type Device, type Module, type Playback, type Settings, type Shortcut, type SpotifyState } from "./api";
+import { api, useSettings, useSpotify, type Action, type Device, type HaStatus, type Homelab as HomelabData, type Module, type Playback, type Settings, type Shortcut, type SpotifyState } from "./api";
 
 export const Icon = ({ d, stroke }: { d: string; stroke?: boolean }) => (
   <svg viewBox="0 0 24 24" className="h-6 w-6" fill={stroke ? "none" : "currentColor"} stroke={stroke ? "currentColor" : "none"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -112,7 +112,7 @@ function runClient(a: Action, go: (p: string) => void): boolean {
   if (a.type === "url") window.open(a.url, "_blank", "noopener");
   else if (a.type === "module") go(a.module === "dashboard" ? "/" : "/" + a.module);
   else if (a.type === "scene") return a.steps.map((s) => runClient(s, go)).some(Boolean);
-  return a.type === "spotify-device";
+  return a.type === "spotify-device" || a.type === "announce";
 }
 
 function Shortcuts({ go }: { go: (p: string) => void }) {
@@ -227,7 +227,7 @@ export function Dashboard({ go }: { go: (p: string) => void }) {
 
 export const Music = () => <div className="h-full"><NowPlaying big /></div>;
 
-export function Devices() {
+function SpotifyDevices() {
   const q = useQuery({ queryKey: ["devices"], queryFn: () => api<{ devices: Device[] }>("GET", "/api/spotify/devices"), refetchInterval: 10_000 });
   const sp = useSpotify();
   const qc = useQueryClient();
@@ -252,8 +252,103 @@ export function Devices() {
   );
 }
 
+export function Devices() {
+  return (
+    <div className="flex flex-col gap-2">
+      <SpotifyDevices />
+      <AlexaCard />
+    </div>
+  );
+}
+
+function AlexaCard() {
+  const q = useQuery({ queryKey: ["ha"], queryFn: () => api<HaStatus>("GET", "/api/ha/status"), refetchInterval: 15_000 });
+  const [msg, setMsg] = useState("");
+  const send = useMutation({ mutationFn: (m: string) => api("POST", "/api/ha/announce", { message: m }), onSuccess: () => setMsg("") });
+  const s = q.data;
+  return (
+    <section className="card flex flex-col gap-3" aria-label="Alexa and Home">
+      <h2 className="text-lg font-semibold">Alexa / Home</h2>
+      {q.isError ? <p role="status" className="text-dim">Unavailable: {q.error.message}</p>
+        : !s ? <p className="text-dim">Loading...</p>
+        : !s.configured ? <p role="status" className="text-dim">Home Assistant is not configured. Set HA_URL, HA_TOKEN, HA_SENSORS and HA_ANNOUNCE_SERVICE on the server.</p>
+        : (
+          <>
+            <p role="status" className={s.reachable ? "text-accent" : "text-amber-400"}>{s.reachable ? "Home Assistant connected" : `Unavailable: ${s.error}`}</p>
+            {s.sensors.map((x) => (
+              <div key={x.id} className="flex justify-between gap-2"><span className="truncate text-dim">{x.name}</span><span className="tabular-nums">{x.state}{x.unit ? ` ${x.unit}` : ""}</span></div>
+            ))}
+            <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (msg.trim()) send.mutate(msg.trim()); }}>
+              <input className="input flex-1" aria-label="Announcement" placeholder="Announce on Echo..." maxLength={300} value={msg} onChange={(e) => setMsg(e.target.value)} />
+              <button className="btn btn-accent" type="submit" disabled={send.isPending || !msg.trim()}>{send.isPending ? "Sending..." : "Send"}</button>
+            </form>
+            {send.isSuccess && <p role="status" className="text-accent">Announcement sent.</p>}
+            {send.isError && <p role="alert" className="text-red-400">{send.error.message}</p>}
+          </>
+        )}
+    </section>
+  );
+}
+
+const pct = (n: number) => Math.max(0, Math.min(100, n));
+function Bar({ label, value, text }: { label: string; value: number | null; text: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex justify-between text-sm text-dim"><span>{label}</span><span className="tabular-nums">{value === null ? "n/a" : text}</span></div>
+      <div className="h-2 overflow-hidden rounded-full bg-raised"><div className="h-full bg-accent" style={{ width: `${value === null ? 0 : pct(value)}%` }} /></div>
+    </div>
+  );
+}
+const uptime = (s: number) => `${Math.floor(s / 86400)}d ${Math.floor((s % 86400) / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+
+export function Homelab() {
+  const q = useQuery({ queryKey: ["homelab"], queryFn: () => api<HomelabData>("GET", "/api/homelab"), refetchInterval: () => (document.hidden ? false : 10_000) });
+  if (q.isError) return <Notice>Homelab unavailable: {q.error.message}</Notice>;
+  const d = q.data;
+  if (!d) return <Notice>Loading...</Notice>;
+  const { pi } = d;
+  const temp = pi.tempC === null ? "" : pi.tempC >= 80 ? "text-red-400" : pi.tempC >= 70 ? "text-amber-400" : "";
+  return (
+    <div className="grid gap-2 landscape:grid-cols-2 min-[1500px]:grid-cols-3">
+      <section className="card flex flex-col gap-3" aria-label="Raspberry Pi">
+        <h2 className="text-lg font-semibold">Raspberry Pi</h2>
+        <div className="flex items-baseline justify-between gap-2">
+          <span className={`text-4xl font-light tabular-nums ${temp}`}>{pi.tempC === null ? "n/a" : `${pi.tempC.toFixed(1)}°C`}</span>
+          <span className="text-sm text-dim">{pi.uptimeSec === null ? "uptime n/a" : `up ${uptime(pi.uptimeSec)}`}{pi.load ? ` - load ${pi.load.join(" ")}` : ""}</span>
+        </div>
+        <Bar label="CPU" value={pi.cpuPercent} text={`${pi.cpuPercent}%`} />
+        <Bar label="RAM" value={pi.mem && (pi.mem.usedMb / pi.mem.totalMb) * 100} text={pi.mem ? `${pi.mem.usedMb} / ${pi.mem.totalMb} MB` : ""} />
+        <Bar label="Disk" value={pi.disk && (pi.disk.usedGb / pi.disk.totalGb) * 100} text={pi.disk ? `${pi.disk.usedGb} / ${pi.disk.totalGb} GB` : ""} />
+      </section>
+      <section className="card flex flex-col gap-2" aria-label="Containers">
+        <h2 className="text-lg font-semibold">Containers{d.snapshotAge !== null && <span className="ml-2 text-sm font-normal text-dim">snapshot {d.snapshotAge}s old</span>}</h2>
+        {d.containers === null ? <p role="status" className="text-dim">Unavailable: {d.error}</p>
+          : d.containers.length === 0 ? <p className="text-dim">No containers.</p>
+          : d.containers.map((c) => (
+            <div key={c.name} className="flex items-center gap-2">
+              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${c.state === "running" ? "bg-accent" : "bg-red-500"}`} />
+              <span className="truncate">{c.name}</span>
+              <span className="ml-auto truncate text-sm text-dim">{c.status}</span>
+            </div>
+          ))}
+      </section>
+      <section className="card flex flex-col gap-2" aria-label="Hosts">
+        <h2 className="text-lg font-semibold">Hosts</h2>
+        {d.hosts.length === 0 && <p className="text-dim">No hosts configured (NEXUS_HOSTS).</p>}
+        {d.hosts.map((h) => (
+          <div key={h.name} className="flex items-center gap-2">
+            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${h.up ? "bg-accent" : "bg-red-500"}`} />
+            <span className="truncate">{h.name} <span className="text-sm text-dim">{h.target}</span></span>
+            <span className="ml-auto text-sm tabular-nums text-dim">{h.up ? `${h.latencyMs} ms` : "down"}</span>
+          </div>
+        ))}
+      </section>
+    </div>
+  );
+}
+
 const blank = (type: string): Action =>
-  type === "url" ? { type, url: "https://" } : type === "module" ? { type, module: "dashboard" } : type === "spotify-device" ? { type, deviceName: "" } : type === "scene" ? { type, steps: [] } : { type: "none" };
+  type === "url" ? { type, url: "https://" } : type === "module" ? { type, module: "dashboard" } : type === "spotify-device" ? { type, deviceName: "" } : type === "announce" ? { type, message: "" } : type === "scene" ? { type, steps: [] } : { type: "none" };
 
 function ActionEditor({ a, set, scene }: { a: Action; set: (a: Action) => void; scene: boolean }) {
   return (
@@ -263,15 +358,17 @@ function ActionEditor({ a, set, scene }: { a: Action; set: (a: Action) => void; 
         <option value="url">Open URL</option>
         <option value="module">Go to module</option>
         <option value="spotify-device">Play on Spotify device</option>
+        <option value="announce">Alexa announcement</option>
         {scene && <option value="scene">Scene (several steps)</option>}
       </select>
       {a.type === "url" && <input className="input" aria-label="URL" value={a.url} onChange={(e) => set({ ...a, url: e.target.value })} />}
       {a.type === "module" && (
         <select className="input" aria-label="Module" value={a.module} onChange={(e) => set({ ...a, module: e.target.value as Module })}>
-          {["dashboard", "music", "devices", "timer", "settings"].map((m) => <option key={m}>{m}</option>)}
+          {["dashboard", "music", "devices", "timer", "homelab", "settings"].map((m) => <option key={m}>{m}</option>)}
         </select>
       )}
       {a.type === "spotify-device" && <input className="input" aria-label="Device name" placeholder="Device name" value={a.deviceName} onChange={(e) => set({ ...a, deviceName: e.target.value })} />}
+      {a.type === "announce" && <input className="input" aria-label="Announcement message" placeholder="Message" maxLength={300} value={a.message} onChange={(e) => set({ ...a, message: e.target.value })} />}
       {a.type === "scene" && (
         <div className="flex flex-col gap-2 border-l-2 border-line pl-3">
           {a.steps.map((s, i) => (

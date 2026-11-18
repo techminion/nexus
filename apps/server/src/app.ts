@@ -5,6 +5,8 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync } from "node:fs";
 import { openKv } from "./db.ts";
 import { AppError, createSpotify } from "./spotify.ts";
+import { createHomelab, type HomelabCfg } from "./homelab.ts";
+import { createHomeAssistant, type HaCfg } from "./homeassistant.ts";
 import { DEFAULT_SETTINGS, validateSettings, type Action, type Settings } from "./actions.ts";
 
 export interface Config {
@@ -14,6 +16,8 @@ export interface Config {
   clientId?: string;
   publicUrl?: string;
   webDist?: string;
+  homelab?: Omit<HomelabCfg, "dataDir">;
+  ha?: HaCfg;
 }
 
 const sha = (s: string) => createHash("sha256").update(s).digest();
@@ -33,6 +37,9 @@ export async function buildApp(cfg: Config) {
   await app.register(cookie, { secret: cfg.secret });
   const kv = openKv(cfg.dataDir);
   const spotify = createSpotify(kv, { clientId: cfg.clientId, publicUrl: cfg.publicUrl });
+  const warn = (m: string) => app.log.warn(m);
+  const homelab = createHomelab({ dataDir: cfg.dataDir, ...cfg.homelab }, warn);
+  const ha = createHomeAssistant(cfg.ha ?? {}, warn);
   const settings = (): Settings => kv.get<Settings>("settings") ?? DEFAULT_SETTINGS;
 
   // Random session ids kept server-side so logout revokes them; sessions are tied to the current password.
@@ -105,9 +112,10 @@ export async function buildApp(cfg: Config) {
     const steps: Action[] = sc.action.type === "scene" ? sc.action.steps : [sc.action];
     const results = [];
     for (const s of steps) {
-      if (s.type !== "spotify-device") { results.push({ type: s.type, status: "client" }); continue; }
+      if (s.type !== "spotify-device" && s.type !== "announce") { results.push({ type: s.type, status: "client" }); continue; }
       try {
-        await spotify.transferByName(s.deviceName);
+        if (s.type === "announce") await ha.announce(s.message);
+        else await spotify.transferByName(s.deviceName);
         results.push({ type: s.type, status: "ok" });
       } catch (e) {
         if (!(e instanceof AppError)) throw e;
@@ -116,6 +124,10 @@ export async function buildApp(cfg: Config) {
     }
     return { results };
   });
+
+  app.get("/api/homelab", async () => homelab.get());
+  app.get("/api/ha/status", async () => ha.status());
+  app.post("/api/ha/announce", { schema: { body: { type: "object", required: ["message"], additionalProperties: false, properties: { message: { type: "string", minLength: 1, maxLength: 300 } } } } }, async (req) => (await ha.announce((req.body as { message: string }).message), { ok: true }));
 
   app.get("/api/spotify/login", async (_req, reply) => reply.redirect(spotify.login()));
   app.get("/api/spotify/callback", async (req, reply) => {
