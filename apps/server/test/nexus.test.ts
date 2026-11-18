@@ -325,6 +325,10 @@ test("spotify keeps last track when Spotify briefly reports no player; play targ
     assert.equal(s.playback.is_playing, false);
     await sp.play();
     assert.match(calls.at(-1)!, /\/me\/player\/play\?device_id=dev1$/);
+    // A restart while the player is idle still shows the last track (persisted in kv).
+    const restarted = (await createSpotify(kv, { clientId: "c", publicUrl: "https://x" }).state()) as any;
+    assert.equal(restarted.playback.track, "Song");
+    assert.equal(restarted.playback.is_playing, false);
   } finally {
     globalThis.fetch = realFetch;
   }

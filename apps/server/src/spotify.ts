@@ -36,7 +36,9 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
   let refreshing: Promise<Tokens> | undefined;
   let cache: { at: number; value: unknown } | undefined;
   // Last real playback: Spotify briefly reports no player (204 / item:null) around pause and when an idle device sleeps.
-  let last: { playback: NonNullable<ReturnType<typeof mapPlayback>>; deviceId: string | null; stale: boolean } | undefined;
+  type Last = { playback: NonNullable<ReturnType<typeof mapPlayback>>; deviceId: string | null; stale: boolean };
+  // Persisted so a restart while the player is idle still has something to show.
+  let last = kv.get<Last>("spotify_last");
   let likedCache: { uri: string; value: boolean | null; exp?: number } | undefined;
   let likeVer = 0; // bumped around like writes so older in-flight lookups cannot overwrite them // one library check per track change
   const lists = new Map<string, { at: number; gen: number; value: unknown }>(); // playlists/recent, ~60s
@@ -93,6 +95,7 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
     gen++;
     refreshing = undefined;
     cache = likedCache = last = undefined;
+    kv.del("spotify_last");
     likeVer++;
     lists.clear();
   }
@@ -191,7 +194,11 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
     try {
       const raw = await api("GET", "/me/player");
       let playback = mapPlayback(raw);
-      if (playback?.track) { if (g === gen) last = { playback, deviceId: raw.device?.id ?? null, stale: false }; }
+      if (playback?.track) {
+        const deviceId = raw.device?.id ?? null;
+        const changed = !last || last.stale || last.playback.uri !== playback.uri || last.deviceId !== deviceId || last.playback.is_playing !== playback.is_playing;
+        if (g === gen) { last = { playback, deviceId, stale: false }; if (changed) kv.set("spotify_last", last); }
+      }
       else if (last) { last.stale = true; playback = { ...last.playback, is_playing: false }; }
       if (playback?.uri && TRACK_RE.test(playback.uri)) playback.liked = await likedFor(playback.uri);
       value = { connected: true, scopesOk: scopesOk(), error: null, playback };
