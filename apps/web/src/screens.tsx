@@ -126,7 +126,7 @@ function NowPlaying({ big, stack }: { big?: boolean; stack?: boolean }) {
     );
   return (
     <section className="card flex h-full min-h-0 gap-4" aria-label="Now playing">
-      {p.art ? <img src={p.art} alt="" className="aspect-square h-auto w-[clamp(6rem,30vh,22rem)] shrink-0 self-center rounded-2xl object-cover" /> : <div className="aspect-square w-[clamp(6rem,30vh,22rem)] shrink-0 self-center rounded-2xl bg-raised" />}
+      {p.art ? <img src={p.art} alt="" className="aspect-square h-auto w-[clamp(6rem,min(30vh,35vw),22rem)] shrink-0 self-center rounded-2xl object-cover" /> : <div className="aspect-square w-[clamp(6rem,min(30vh,35vw),22rem)] shrink-0 self-center rounded-2xl bg-raised" />}
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
         <div className="min-w-0">
           <p className={`truncate font-bold ${big ? "text-3xl" : "text-2xl"}`}>{p.track ?? "Unknown"}</p>
@@ -178,6 +178,8 @@ function Shortcuts({ go }: { go: (p: string) => void }) {
     onError: (e) => setMsg(e.message),
   });
   if (!settings) return null;
+  if (settings.shortcuts.every((s) => s.action.type === "none"))
+    return <section aria-label="Shortcuts" className="card text-dim">No shortcuts yet. Set them up in Settings.</section>;
   return (
     <section aria-label="Shortcuts">
       <div className="grid grid-cols-2 gap-2 landscape:max-[1100px]:grid-cols-3 min-[1100px]:grid-cols-3">
@@ -201,7 +203,7 @@ function ClockCalendar() {
   const cells = [...Array(lead).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)];
   return (
     <section className="card flex flex-col gap-2" aria-label="Clock and calendar">
-      <div className="flex items-baseline justify-between gap-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2">
         <span className="text-4xl font-semibold tabular-nums">{fmtTime(now, h24)}</span>
         <span className="text-dim">{now.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</span>
       </div>
@@ -265,7 +267,7 @@ export function Timers() {
 
 export function Dashboard({ go }: { go: (p: string) => void }) {
   return (
-    <div className="grid h-full gap-2 landscape:grid-cols-[3fr_2fr] portrait:grid-rows-[auto_auto_auto]">
+    <div className="grid h-full gap-2 landscape:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] portrait:grid-cols-[minmax(0,1fr)] portrait:grid-rows-[auto_auto_auto]">
       <NowPlaying />
       <div className="flex min-h-0 flex-col gap-2 overflow-y-auto">
         <Shortcuts go={go} />

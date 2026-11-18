@@ -98,7 +98,7 @@ function Shell({ path, go }: { path: string; go: (p: string) => void }) {
       </header>
       {offline && <div role="alert" className="bg-red-900/60 px-4 py-2 text-center">Nexus server unreachable. Retrying...</div>}
       <div className="flex min-h-0 flex-1 portrait:flex-col-reverse">
-        <nav className="flex gap-2 p-2 landscape:flex-col landscape:justify-center portrait:justify-around" aria-label="Main">
+        <nav className="flex gap-2 p-2 landscape:flex-col landscape:justify-center landscape:gap-1 landscape:overflow-y-auto portrait:justify-around" aria-label="Main">
           {NAV.map((n) => (
             <button key={n.id} onClick={() => go(n.path)} aria-current={mod === n.id} aria-label={n.label} title={n.label} className={`btn px-3 ${mod === n.id ? "btn-accent" : ""}`}>
               <Icon d={n.icon} stroke />
