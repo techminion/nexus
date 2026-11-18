@@ -82,7 +82,7 @@ function Progress({ p, at, onSeek }: { p: Playback; at: number; onSeek: (ms: num
   );
 }
 
-function NowPlaying({ big }: { big?: boolean }) {
+function NowPlaying({ big, stack }: { big?: boolean; stack?: boolean }) {
   const q = useSpotify();
   const ctl = useControl();
   const s = q.data;
@@ -93,26 +93,55 @@ function NowPlaying({ big }: { big?: boolean }) {
   if (!p) return <Notice>Nothing playing. Start Spotify on a device, or pick one in Devices.</Notice>;
   const { run } = ctl;
   const next = { repeat: { off: "context", context: "track", track: "off" } as const }.repeat[p.repeat] ?? "off";
+  const likeBtn = (p.uri && /^spotify:track:/.test(p.uri) ? <button className={`btn ${p.liked ? "btn-accent" : ""}`} aria-label={p.liked ? "Unlike" : "Like"} aria-pressed={!!p.liked} onClick={() => run({ method: "PUT", path: "/api/spotify/like", body: { uri: p.uri, liked: !p.liked }, patch: { liked: !p.liked } })}><svg viewBox="0 0 24 24" className="h-6 w-6" fill={p.liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden><path d={I.heart} /></svg></button> : null);
+  const progress = <Progress p={p} at={q.dataUpdatedAt} onSeek={(ms) => run({ method: "PUT", path: "/api/spotify/seek", body: { positionMs: ms }, patch: { progress_ms: ms } })} />;
+  const transport = (
+    <>
+      <button className="btn" aria-label="Previous" onClick={() => run({ method: "PUT", path: "/api/spotify/previous" })}><Icon d={I.prev} /></button>
+      <button className="btn btn-accent min-h-14 min-w-16" aria-label={p.is_playing ? "Pause" : "Play"} onClick={() => run({ method: "PUT", path: p.is_playing ? "/api/spotify/pause" : "/api/spotify/play", patch: { is_playing: !p.is_playing } })}><Icon d={p.is_playing ? I.pause : I.play} /></button>
+      <button className="btn" aria-label="Next" onClick={() => run({ method: "PUT", path: "/api/spotify/next" })}><Icon d={I.next} /></button>
+    </>
+  );
+  const shuffleBtn = <button className={`btn ${p.shuffle ? "btn-accent" : ""}`} aria-label="Shuffle" aria-pressed={p.shuffle} onClick={() => run({ method: "PUT", path: "/api/spotify/shuffle", body: { state: !p.shuffle }, patch: { shuffle: !p.shuffle } })}><Icon d={I.shuffle} stroke /></button>;
+  const repeatBtn = <button className={`btn ${p.repeat !== "off" ? "btn-accent" : ""}`} aria-label={`Repeat ${p.repeat}`} onClick={() => run({ method: "PUT", path: "/api/spotify/repeat", body: { state: next }, patch: { repeat: next } })}><Icon d={I.repeat} stroke />{p.repeat === "track" && "1"}</button>;
+  const volume = p.volume !== null && <VolumeSlider volume={p.volume} onSet={(v) => run({ method: "PUT", path: "/api/spotify/volume", body: { percent: v }, patch: { volume: v } })} />;
+  const err = ctl.error && <p role="alert" className="text-sm text-red-400">{ctl.error}</p>;
+  if (stack)
+    return (
+      <section className="card flex min-h-0 flex-col justify-center gap-2 overflow-y-auto" aria-label="Now playing">
+        <div className="flex min-w-0 items-center gap-3">
+          {p.art ? <img src={p.art} alt="" className="aspect-square w-[clamp(4.5rem,24vh,10rem)] shrink-0 rounded-xl object-cover" /> : <div className="aspect-square w-[clamp(4.5rem,24vh,10rem)] shrink-0 rounded-xl bg-raised" />}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xl font-bold">{p.track ?? "Unknown"}</p>
+            <p className="truncate text-dim">{p.artists.join(", ")}</p>
+            <p className="truncate text-sm text-dim">{p.album}{p.device ? ` - ${p.device}` : ""}</p>
+          </div>
+          {likeBtn}
+        </div>
+        {progress}
+        <div className="flex items-center justify-center gap-2">{shuffleBtn}{transport}{repeatBtn}</div>
+        {volume}
+        {err}
+      </section>
+    );
   return (
     <section className="card flex h-full min-h-0 gap-4" aria-label="Now playing">
       {p.art ? <img src={p.art} alt="" className="aspect-square h-auto w-[clamp(6rem,30vh,22rem)] shrink-0 self-center rounded-2xl object-cover" /> : <div className="aspect-square w-[clamp(6rem,30vh,22rem)] shrink-0 self-center rounded-2xl bg-raised" />}
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
         <div className="min-w-0">
           <p className={`truncate font-bold ${big ? "text-3xl" : "text-2xl"}`}>{p.track ?? "Unknown"}</p>
-          <p className="truncate text-dim">{p.artists.join(", ")}{p.album && !big ? "" : ""}</p>
+          <p className="truncate text-dim">{p.artists.join(", ")}</p>
           {big && <p className="truncate text-sm text-dim">{p.album}{p.device ? ` - ${p.device}` : ""}</p>}
         </div>
-        <Progress p={p} at={q.dataUpdatedAt} onSeek={(ms) => run({ method: "PUT", path: "/api/spotify/seek", body: { positionMs: ms }, patch: { progress_ms: ms } })} />
+        {progress}
         <div className="flex items-center justify-center gap-3">
-          {big && <button className={`btn ${p.shuffle ? "btn-accent" : ""}`} aria-label="Shuffle" aria-pressed={p.shuffle} onClick={() => run({ method: "PUT", path: "/api/spotify/shuffle", body: { state: !p.shuffle }, patch: { shuffle: !p.shuffle } })}><Icon d={I.shuffle} stroke /></button>}
-          {p.uri && /^spotify:track:/.test(p.uri) && <button className={`btn ${p.liked ? "btn-accent" : ""}`} aria-label={p.liked ? "Unlike" : "Like"} aria-pressed={!!p.liked} onClick={() => run({ method: "PUT", path: "/api/spotify/like", body: { uri: p.uri, liked: !p.liked }, patch: { liked: !p.liked } })}><svg viewBox="0 0 24 24" className="h-6 w-6" fill={p.liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden><path d={I.heart} /></svg></button>}
-          <button className="btn" aria-label="Previous" onClick={() => run({ method: "PUT", path: "/api/spotify/previous" })}><Icon d={I.prev} /></button>
-          <button className="btn btn-accent min-h-14 min-w-16" aria-label={p.is_playing ? "Pause" : "Play"} onClick={() => run({ method: "PUT", path: p.is_playing ? "/api/spotify/pause" : "/api/spotify/play", patch: { is_playing: !p.is_playing } })}><Icon d={p.is_playing ? I.pause : I.play} /></button>
-          <button className="btn" aria-label="Next" onClick={() => run({ method: "PUT", path: "/api/spotify/next" })}><Icon d={I.next} /></button>
-          {big && <button className={`btn ${p.repeat !== "off" ? "btn-accent" : ""}`} aria-label={`Repeat ${p.repeat}`} onClick={() => run({ method: "PUT", path: "/api/spotify/repeat", body: { state: next }, patch: { repeat: next } })}><Icon d={I.repeat} stroke />{p.repeat === "track" && "1"}</button>}
+          {big && shuffleBtn}
+          {likeBtn}
+          {transport}
+          {big && repeatBtn}
         </div>
-        {big && p.volume !== null && <VolumeSlider volume={p.volume} onSet={(v) => run({ method: "PUT", path: "/api/spotify/volume", body: { percent: v }, patch: { volume: v } })} />}
-        {ctl.error && <p role="alert" className="text-sm text-red-400">{ctl.error}</p>}
+        {big && volume}
+        {err}
       </div>
     </section>
   );
@@ -255,15 +284,15 @@ function useAddQueue() {
   return useMutation({ mutationFn: (uri: string) => api("POST", "/api/spotify/queue", { uri }) });
 }
 
-function UpNext() {
+function UpNext({ bare }: { bare?: boolean }) {
   const sp = useSpotify();
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["queue"], queryFn: () => api<{ queue: Item[] }>("GET", "/api/spotify/queue"), refetchInterval: () => (document.hidden ? false : 10_000), enabled: !!sp.data?.connected, retry: false });
   const trackUri = sp.data?.playback?.uri;
   useEffect(() => { void qc.invalidateQueries({ queryKey: ["queue"] }); }, [trackUri, qc]);
   return (
-    <section className="card flex min-h-0 flex-col gap-2 overflow-y-auto" aria-label="Up next">
-      <h2 className="text-lg font-semibold">Up next</h2>
+    <section className={bare ? "flex flex-col gap-2" : "card flex min-h-0 flex-col gap-2 overflow-y-auto"} aria-label="Up next">
+      {!bare && <h2 className="text-lg font-semibold">Up next</h2>}
       {q.isError ? <p role="status" className="text-dim">{q.error.message}</p>
         : !q.data ? <p className="text-dim">Loading...</p>
         : q.data.queue.length === 0 ? <p className="text-dim">Queue is empty.</p>
@@ -278,17 +307,20 @@ function UpNext() {
 }
 
 export const Music = () => (
-  <div className="grid h-full gap-2 landscape:grid-cols-[3fr_2fr] portrait:grid-rows-[auto_1fr]">
-    <NowPlaying big />
-    <UpNext />
+  <div className="grid h-full min-h-0 gap-2 landscape:grid-cols-[minmax(19rem,2fr)_3fr] portrait:grid-rows-[auto_1fr]">
+    <NowPlaying big stack />
+    <section className="card flex min-h-0 flex-col" aria-label="Browse"><LibraryPanel tabs={["queue", "playlists", "recent", "speakers"]} /></section>
   </div>
 );
 
-export function Library() {
+type Tab = "queue" | "playlists" | "recent" | "speakers";
+const TAB_LABEL: Record<Tab, string> = { queue: "Up next", playlists: "Playlists", recent: "Recent", speakers: "Speakers" };
+
+function LibraryPanel({ tabs }: { tabs: Tab[] }) {
   const sp = useSpotify();
   const qc = useQueryClient();
   const settings = useSettings().data;
-  const [tab, setTab] = useState<"playlists" | "recent">("playlists");
+  const [tab, setTab] = useState<Tab>(tabs[0]);
   const [msg, setMsg] = useState("");
   const on = !!sp.data?.connected;
   const pl = useQuery({ queryKey: ["playlists"], queryFn: () => api<{ playlists: PlaylistInfo[] }>("GET", "/api/spotify/playlists"), enabled: on && tab === "playlists", retry: false });
@@ -312,14 +344,16 @@ export function Library() {
     pin.mutate({ ...settings, shortcuts: settings.shortcuts.map((s, j) => (j === i ? { label: p.name.slice(0, 40), action: { type: "spotify-play", uri: p.uri } } : s)) });
   };
   if (sp.data && !sp.data.connected) return <Notice>Spotify is not connected. Connect it in Settings.</Notice>;
-  const err = tab === "playlists" ? pl.error : rc.error;
+  const err = tab === "playlists" ? pl.error : tab === "recent" ? rc.error : null;
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-2">
+    <div className="flex min-h-0 flex-col gap-2">
       {reconnectBanner(sp.data)}
-      <div className="flex gap-2">
-        <button className={`btn flex-1 ${tab === "playlists" ? "btn-accent" : ""}`} aria-pressed={tab === "playlists"} onClick={() => setTab("playlists")}>Playlists</button>
-        <button className={`btn flex-1 ${tab === "recent" ? "btn-accent" : ""}`} aria-pressed={tab === "recent"} onClick={() => setTab("recent")}>Recently played</button>
+      <div className="flex shrink-0 gap-2" role="tablist">
+        {tabs.map((t) => <button key={t} role="tab" className={`btn flex-1 px-2 text-sm ${tab === t ? "btn-accent" : ""}`} aria-selected={tab === t} onClick={() => setTab(t)}>{TAB_LABEL[t]}</button>)}
       </div>
+      <div className="flex min-h-0 flex-col gap-2 overflow-y-auto">
+      {tab === "queue" && <UpNext bare />}
+      {tab === "speakers" && <SpotifyDevices />}
       {msg && <p role="status" className="text-sm text-accent">{msg}</p>}
       {err && <Notice>{err.message}</Notice>}
       {tab === "playlists" && pl.data?.playlists.length === 0 && <Notice>No playlists.</Notice>}
@@ -342,9 +376,13 @@ export function Library() {
           {t.playable && <button className="btn px-3" aria-label={`Add ${t.name} to queue`} onClick={() => { setMsg(""); add.mutate(t.uri, { onSuccess: () => setMsg("Added to queue."), onError: (e) => setMsg(e.message) }); }}>+ Queue</button>}
         </div>
       ))}
+      </div>
     </div>
   );
 }
+
+export const Library = () => <div className="mx-auto flex h-full max-w-3xl flex-col"><LibraryPanel tabs={["playlists", "recent"]} /></div>;
+
 
 function SpotifyDevices() {
   const q = useQuery({ queryKey: ["devices"], queryFn: () => api<{ devices: Device[] }>("GET", "/api/spotify/devices"), refetchInterval: 10_000 });
