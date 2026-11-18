@@ -154,7 +154,7 @@ export async function buildApp(cfg: Config) {
   app.put("/api/spotify/volume", { schema: { body: percent } }, async (req) => (await spotify.cmd("PUT", "/me/player/volume", { volume_percent: String((req.body as { percent: number }).percent) }), ok));
   app.put("/api/spotify/shuffle", { schema: { body: stateBody([]) } }, async (req) => (await spotify.cmd("PUT", "/me/player/shuffle", { state: String((req.body as { state: boolean }).state) }), ok));
   app.put("/api/spotify/repeat", { schema: { body: stateBody(["off", "context", "track"]) } }, async (req) => (await spotify.cmd("PUT", "/me/player/repeat", { state: (req.body as { state: string }).state }), ok));
-  app.put("/api/spotify/seek", { schema: { body: body1("positionMs", { type: "integer", minimum: 0 }) } }, async (req) => (await spotify.cmd("PUT", "/me/player/seek", { position_ms: String((req.body as { positionMs: number }).positionMs) }), ok));
+  app.put("/api/spotify/seek", { schema: { body: body1("positionMs", { type: "integer", minimum: 0, maximum: 86400000 }) } }, async (req) => (await spotify.cmd("PUT", "/me/player/seek", { position_ms: String((req.body as { positionMs: number }).positionMs) }), ok));
   app.get("/api/spotify/queue", async () => spotify.queue());
   app.post("/api/spotify/queue", { schema: { body: body1("uri", uriProp(/^spotify:(track|episode):[A-Za-z0-9]{22}$/)) } }, async (req) => (await spotify.cmd("POST", "/me/player/queue", { uri: (req.body as { uri: string }).uri }), ok));
   app.put("/api/spotify/like", { schema: { body: body1("uri", uriProp(TRACK_RE), { liked: { type: "boolean" } }) } }, async (req) => {

@@ -23,7 +23,7 @@ const REAUTH = "Reconnect Spotify in Settings to enable this (new permissions)."
 const NEEDS_NEW_SCOPES = /^\/me\/(library|playlists|player\/recently-played)/;
 const https = (u: unknown): string | null => (typeof u === "string" && u.startsWith("https://") ? u : null);
 const mapItem = (it: any) => ({
-  uri: it?.uri as string, name: (it?.name ?? "Unknown") as string,
+  uri: (it?.uri ?? "") as string, name: (it?.name ?? "Unknown") as string,
   artists: (it?.artists ?? (it?.show?.publisher ? [{ name: it.show.publisher }] : [])).map((a: any) => a.name) as string[],
   art: https(it?.album?.images?.[0]?.url ?? it?.images?.[0]?.url),
 });
@@ -35,8 +35,9 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
   let gen = 0; // bumped on disconnect so in-flight refreshes cannot resurrect tokens
   let refreshing: Promise<Tokens> | undefined;
   let cache: { at: number; value: unknown } | undefined;
-  let likedCache: { uri: string; value: boolean | null } | undefined; // one library check per track change
-  const lists = new Map<string, { at: number; value: unknown }>(); // playlists/recent, ~60s
+  let likedCache: { uri: string; value: boolean | null; exp?: number } | undefined;
+  let likeVer = 0; // bumped around like writes so older in-flight lookups cannot overwrite them // one library check per track change
+  const lists = new Map<string, { at: number; gen: number; value: unknown }>(); // playlists/recent, ~60s
   const redirectUri = () => `${env.publicUrl}/api/spotify/callback`;
   const tokens = () => kv.get<Tokens>("spotify");
   const scopesOk = () => { const g = tokens()?.scope?.split(" ") ?? []; return NEW_SCOPES.split(" ").every((s) => g.includes(s)); };
@@ -80,8 +81,17 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
     const p = pending.get(state);
     pending.delete(state);
     if (!p || p.exp < Date.now()) throw new AppError(400, "bad_state", "Invalid or expired authorization state.");
-    kv.set("spotify", await tokenRequest({ grant_type: "authorization_code", code, redirect_uri: redirectUri(), code_verifier: p.verifier }));
-    likedCache = undefined;
+    const t = await tokenRequest({ grant_type: "authorization_code", code, redirect_uri: redirectUri(), code_verifier: p.verifier });
+    reset();
+    kv.set("spotify", t);
+  }
+
+  // A new grant or disconnect: old account state, caches and in-flight work must not survive.
+  function reset() {
+    gen++;
+    refreshing = undefined;
+    cache = likedCache = undefined;
+    likeVer++;
     lists.clear();
   }
 
@@ -93,7 +103,9 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
 
   // Coalesced: Spotify may rotate the refresh token, so concurrent refreshes would invalidate each other.
   function refresh(): Promise<Tokens> {
-    return (refreshing ??= doRefresh().finally(() => (refreshing = undefined)));
+    if (refreshing) return refreshing;
+    const p: Promise<Tokens> = doRefresh().finally(() => { if (refreshing === p) refreshing = undefined; });
+    return (refreshing = p);
   }
 
   async function doRefresh(): Promise<Tokens> {
@@ -173,6 +185,7 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
     if (!tokens()) return { connected: false, scopesOk: false, error: null, playback: null };
     if (cache && Date.now() - cache.at < 1000) return cache.value;
     let value;
+    const g = gen, v = likeVer;
     try {
       const playback = mapPlayback(await api("GET", "/me/player"));
       if (playback?.uri && TRACK_RE.test(playback.uri)) playback.liked = await likedFor(playback.uri);
@@ -181,45 +194,53 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
       if (!(e instanceof AppError)) throw e;
       value = { connected: !!tokens(), scopesOk: scopesOk(), error: { code: e.code, message: e.message, retryAfter: e.retryAfter ?? null }, playback: null };
     }
-    cache = { at: Date.now(), value };
+    if (g === gen && v === likeVer) cache = { at: Date.now(), value };
     return value;
   }
 
   // Failures (no scope, 429) must not break playback state: liked is just unknown.
   async function likedFor(uri: string): Promise<boolean | null> {
-    if (likedCache?.uri === uri) return likedCache.value;
+    if (likedCache?.uri === uri && (!likedCache.exp || likedCache.exp > Date.now())) return likedCache.value;
+    const v = likeVer;
+    let entry: NonNullable<typeof likedCache>;
     try {
       const j = await api("GET", "/me/library/contains", { query: { uris: uri } });
-      likedCache = { uri, value: Array.isArray(j) ? !!j[0] : null };
+      entry = { uri, value: Array.isArray(j) ? !!j[0] : null };
     } catch (e) {
       if (!(e instanceof AppError)) throw e;
       if (e.code === "rate_limited") return null;
-      likedCache = { uri, value: null };
+      entry = { uri, value: null, exp: Date.now() + 30_000 }; // failures retry after 30s, not every poll
     }
-    return likedCache.value;
+    if (v !== likeVer) return likedCache?.uri === uri ? likedCache.value : null; // a like/reset happened meanwhile
+    likedCache = entry;
+    return entry.value;
   }
 
   async function like(uri: string, liked: boolean) {
+    likeVer++;
     await cmd(liked ? "PUT" : "DELETE", "/me/library", { uris: uri });
+    likeVer++;
     likedCache = { uri, value: liked };
+    cache = undefined; // drop a playback snapshot built from a pre-write lookup
   }
 
   async function queue() {
     const j = await api("GET", "/me/player/queue");
-    return { currently: j?.currently_playing ? mapItem(j.currently_playing) : null, queue: ((j?.queue ?? []) as any[]).slice(0, 20).map(mapItem) };
+    return { currently: j?.currently_playing ? mapItem(j.currently_playing) : null, queue: ((j?.queue ?? []) as any[]).filter(Boolean).slice(0, 20).map(mapItem) };
   }
 
   async function cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
     const c = lists.get(key);
-    if (c && Date.now() - c.at < 60_000) return c.value as T;
+    if (c && c.gen === gen && Date.now() - c.at < 60_000) return c.value as T;
+    const g = gen;
     const value = await fn();
-    lists.set(key, { at: Date.now(), value });
+    if (g === gen) lists.set(key, { at: Date.now(), gen: g, value });
     return value;
   }
 
   const playlists = () => cached("playlists", async () => {
     const out = [];
-    for (let offset = 0; offset < 100; offset += 50) {
+    for (let offset = 0; offset < 500; offset += 50) {
       const j = await api("GET", "/me/playlists", { query: { limit: "50", offset: String(offset) } });
       for (const p of j?.items ?? []) {
         if (p) out.push({ id: p.id as string, uri: p.uri as string, name: (p.name ?? "Untitled") as string, art: https(p.images?.[0]?.url), owner: (p.owner?.display_name ?? p.owner?.id ?? "") as string, count: (p.items?.total ?? p.tracks?.total ?? 0) as number });
@@ -231,7 +252,7 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
 
   const recent = () => cached("recent", async () => {
     const j = await api("GET", "/me/player/recently-played", { query: { limit: "20" } });
-    return ((j?.items ?? []) as any[]).map((x) => ({ ...mapItem(x.track), playedAt: x.played_at as string }));
+    return ((j?.items ?? []) as any[]).filter((x) => x?.track).map((x) => ({ ...mapItem(x.track), playedAt: x.played_at as string, playable: TRACK_RE.test(x.track.uri ?? "") }));
   });
 
   const playItem = (uri: string) => cmd("PUT", "/me/player/play", undefined, TRACK_RE.test(uri) ? { uris: [uri] } : { context_uri: uri });
@@ -255,6 +276,6 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
 
   return {
     login, callback, state, devices, cmd, transferByName, like, queue, playlists, recent, playItem,
-    disconnect: () => { gen++; kv.del("spotify"); cache = undefined; likedCache = undefined; lists.clear(); },
+    disconnect: () => { reset(); kv.del("spotify"); },
   };
 }

@@ -177,7 +177,7 @@ test("spotify new routes: schemas, Spotify calls, reauth, shortcut run", async (
   const cookies = { [r.cookies[0].name]: r.cookies[0].value };
   const put = (url: string, payload: unknown, method = "PUT") => app.inject({ method: method as "PUT", url, cookies, payload: payload as object });
   for (const [m, u, p] of [
-    ["PUT", "/api/spotify/seek", { positionMs: -1 }], ["PUT", "/api/spotify/seek", { positionMs: 1.5 }], ["PUT", "/api/spotify/seek", {}],
+    ["PUT", "/api/spotify/seek", { positionMs: -1 }], ["PUT", "/api/spotify/seek", { positionMs: 1.5 }], ["PUT", "/api/spotify/seek", {}], ["PUT", "/api/spotify/seek", { positionMs: 86400001 }],
     ["POST", "/api/spotify/queue", { uri: `spotify:playlist:${PID}` }], ["POST", "/api/spotify/queue", { uri: "spotify:track:bad" }],
     ["PUT", "/api/spotify/like", { uri: `spotify:episode:${TID}`, liked: true }], ["PUT", "/api/spotify/like", { uri: `spotify:track:${TID}` }],
     ["PUT", "/api/spotify/play-context", { contextUri: `spotify:track:${TID}` }], ["PUT", "/api/spotify/play-context", { contextUri: `http://x/${PID}` }],
@@ -249,4 +249,57 @@ test("spotify new routes: schemas, Spotify calls, reauth, shortcut run", async (
     globalThis.fetch = realFetch;
   }
   await app.close();
+});
+
+test("spotify caches: reconnect clears, liked race guard, null entries, pagination", async () => {
+  const kv = openKv(":memory:");
+  kv.set("spotify", { access: "a", refresh: "r", expires: Date.now() + 3_600_000, scope: "x" });
+  const sp = createSpotify(kv, { clientId: "c", publicUrl: "https://x" });
+  const realFetch = globalThis.fetch;
+  const pl = (n: number, next: boolean) => Response.json({ items: Array.from({ length: n }, (_, i) => ({ id: `i${i}`, uri: `spotify:playlist:${PID}`, name: "P" })), next: next ? "more" : null });
+  let release: (() => void) | undefined;
+  let gate: Promise<void> | undefined;
+  let pages = 0, library = true;
+  globalThis.fetch = async (u: any, init: any) => {
+    const url = String(u);
+    if (url.includes("/me/playlists")) { pages++; if (gate) await gate; return pl(50, pages < 12); }
+    if (url.includes("/recently-played")) return Response.json({ items: [null, { track: null }, { track: { uri: "spotify:local:a:b:c:1", name: "L", artists: [] }, played_at: "t" }, { track: { uri: `spotify:track:${TID}`, name: "T", artists: [{ name: "A" }] }, played_at: "t2" }] });
+    if (url.includes("/me/player/queue")) return Response.json({ currently_playing: null, queue: [null, ...Array.from({ length: 25 }, () => ({ uri: `spotify:track:${TID}`, name: "Q" }))] });
+    if (url.includes("/me/library") && init?.method === "GET") { if (gate) await gate; return Response.json([library]); }
+    if (url.endsWith("/me/player")) return Response.json({ is_playing: true, item: { uri: `spotify:track:${TID}`, name: "T", duration_ms: 1, artists: [] } });
+    return new Response(null, { status: 200 });
+  };
+  try {
+    assert.equal(((await sp.playlists()) as unknown[]).length, 500); // paginates past 100, capped at 500
+    const rc = (await sp.recent()) as { playable: boolean; name: string }[];
+    assert.deepEqual(rc.map((x) => [x.name, x.playable]), [["L", false], ["T", true]]);
+    const q = (await sp.queue()) as { queue: unknown[] };
+    assert.equal(q.queue.length, 20);
+
+    // in-flight playlists fetch started before a disconnect must not repopulate the cache
+    pages = 0;
+    sp.disconnect();
+    kv.set("spotify", { access: "a", refresh: "r", expires: Date.now() + 3_600_000, scope: "x" });
+    gate = new Promise((r) => (release = r));
+    const inflight = sp.playlists();
+    sp.disconnect();
+    kv.set("spotify", { access: "a", refresh: "r", expires: Date.now() + 3_600_000, scope: "x" });
+    release!(); gate = undefined;
+    await inflight;
+    const before = pages;
+    await sp.playlists();
+    assert.ok(pages > before, "stale in-flight result must not be cached across reconnect");
+
+    // liked lookup in flight while a like is written: the write wins
+    library = false;
+    gate = new Promise((r) => (release = r));
+    const st = sp.state();
+    await new Promise((r) => setTimeout(r, 20));
+    const liking = sp.like(`spotify:track:${TID}`, true);
+    release!(); gate = undefined;
+    await Promise.all([st, liking]);
+    assert.equal(((await sp.state()) as any).playback.liked, true);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });

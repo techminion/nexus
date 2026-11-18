@@ -43,7 +43,7 @@ export interface SpotifyState {
 }
 export interface Item { uri: string; name: string; artists: string[]; art: string | null }
 export interface PlaylistInfo { id: string; uri: string; name: string; art: string | null; owner: string; count: number }
-export interface RecentTrack extends Item { playedAt: string }
+export interface RecentTrack extends Item { playedAt: string; playable: boolean }
 export interface Device { id: string; name: string; type: string; active: boolean; volume: number | null }
 
 export const useSettings = () => useQuery({ queryKey: ["settings"], queryFn: () => api<Settings>("GET", "/api/settings") });

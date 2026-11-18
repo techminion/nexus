@@ -29,7 +29,14 @@ function useControl() {
       if (prev?.playback && v.patch) qc.setQueryData<SpotifyState>(["spotify"], { ...prev, playback: { ...prev.playback, ...v.patch } });
       return { prev };
     },
-    onError: (_e, _v, c) => c?.prev && qc.setQueryData(["spotify"], c.prev),
+    // Roll back only the fields this mutation changed, and only if nothing newer has overwritten them.
+    onError: (_e, v, c) => {
+      const cur = qc.getQueryData<SpotifyState>(["spotify"]);
+      if (!cur?.playback || !c?.prev?.playback || !v.patch) return;
+      const pb: Record<string, unknown> = { ...cur.playback };
+      for (const k of Object.keys(v.patch) as (keyof Playback)[]) if (cur.playback[k] === v.patch[k]) pb[k] = c.prev.playback[k];
+      qc.setQueryData<SpotifyState>(["spotify"], { ...cur, playback: pb as unknown as Playback });
+    },
     onSettled: () => void setTimeout(() => qc.invalidateQueries({ queryKey: ["spotify"] }), 500),
   });
   return { run: m.mutate, error: m.isError ? m.error.message : null };
@@ -45,7 +52,8 @@ const mmss = (ms: number) => {
 };
 
 function Progress({ p, at, onSeek }: { p: Playback; at: number; onSeek: (ms: number) => void }) {
-  const [drag, setDrag] = useState<number | null>(null);
+  const [drag, setDrag] = useState<{ id: number; uri: string | null; f: number } | null>(null);
+  useEffect(() => setDrag(null), [p.uri]); // track changed mid-drag: abandon
   const frac = (e: React.PointerEvent<HTMLDivElement>) => { const r = e.currentTarget.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); };
   const [, tick] = useState(0);
   useEffect(() => {
@@ -53,16 +61,17 @@ function Progress({ p, at, onSeek }: { p: Playback; at: number; onSeek: (ms: num
     const t = setInterval(() => tick((n) => n + 1), 500);
     return () => clearInterval(t);
   }, [p.is_playing]);
-  const cur = drag !== null ? drag * p.duration_ms : Math.min(p.duration_ms, p.progress_ms + (p.is_playing ? Date.now() - at : 0));
+  const cur = drag !== null ? drag.f * p.duration_ms : Math.min(p.duration_ms, p.progress_ms + (p.is_playing ? Date.now() - at : 0));
   return (
     <div className="flex items-center gap-2 text-sm tabular-nums text-dim">
       <span>{mmss(cur)}</span>
       <div
         className="flex h-11 flex-1 touch-none items-center" role="slider" aria-label="Seek" aria-valuemin={0} aria-valuemax={p.duration_ms} aria-valuenow={Math.round(cur)}
-        onPointerDown={(e) => { if (!p.duration_ms) return; e.currentTarget.setPointerCapture(e.pointerId); setDrag(frac(e)); }}
-        onPointerMove={(e) => drag !== null && setDrag(frac(e))}
-        onPointerUp={(e) => { if (drag === null) return; onSeek(Math.round(frac(e) * p.duration_ms)); setDrag(null); }}
+        onPointerDown={(e) => { if (!p.duration_ms || drag) return; e.currentTarget.setPointerCapture(e.pointerId); setDrag({ id: e.pointerId, uri: p.uri, f: frac(e) }); }}
+        onPointerMove={(e) => drag?.id === e.pointerId && setDrag({ ...drag, f: frac(e) })}
+        onPointerUp={(e) => { if (drag?.id !== e.pointerId) return; if (drag.uri === p.uri) onSeek(Math.round(frac(e) * p.duration_ms)); setDrag(null); }}
         onPointerCancel={() => setDrag(null)}
+        onLostPointerCapture={() => setDrag(null)}
       >
         <div className="h-2 w-full overflow-hidden rounded-full bg-raised">
           <div className="h-full bg-accent" style={{ width: `${p.duration_ms ? (cur / p.duration_ms) * 100 : 0}%` }} />
@@ -326,11 +335,11 @@ export function Library() {
       {tab === "recent" && rc.data?.tracks.length === 0 && <Notice>Nothing played recently.</Notice>}
       {tab === "recent" && rc.data?.tracks.map((t) => (
         <div key={t.uri + t.playedAt} className="flex items-center gap-2">
-          <button className="btn flex-1 justify-start gap-3 text-left" aria-label={`Play ${t.name}`} onClick={() => play.mutate({ path: "/api/spotify/play-uris", body: { uris: [t.uri] } })}>
+          <button className="btn flex-1 justify-start gap-3 text-left" aria-label={`Play ${t.name}`} disabled={!t.playable} onClick={() => play.mutate({ path: "/api/spotify/play-uris", body: { uris: [t.uri] } })}>
             <Art src={t.art} />
             <span className="min-w-0"><span className="block truncate">{t.name}</span><span className="block truncate text-sm text-dim">{t.artists.join(", ")}</span></span>
           </button>
-          <button className="btn px-3" aria-label={`Add ${t.name} to queue`} onClick={() => { setMsg(""); add.mutate(t.uri, { onSuccess: () => setMsg("Added to queue."), onError: (e) => setMsg(e.message) }); }}>+ Queue</button>
+          {t.playable && <button className="btn px-3" aria-label={`Add ${t.name} to queue`} onClick={() => { setMsg(""); add.mutate(t.uri, { onSuccess: () => setMsg("Added to queue."), onError: (e) => setMsg(e.message) }); }}>+ Queue</button>}
         </div>
       ))}
     </div>
