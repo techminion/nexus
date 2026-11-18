@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, useSettings, useSpotify, type Module } from "./api";
+import { api, homelabIssues, useHa, useHomelab, useSettings, useSpotify, type Module } from "./api";
 import { Dashboard, Devices, Homelab, Icon, Music, SettingsScreen, Timers } from "./screens";
 
 const NAV: { id: Module; label: string; path: string; icon: string }[] = [
@@ -61,6 +61,8 @@ function Shell({ path, go }: { path: string; go: (p: string) => void }) {
   const now = useNow();
   const settings = useSettings().data;
   const sp = useSpotify();
+  const lab = useHomelab();
+  const ha = useHa();
   const [ambient, setAmbient] = useState(false);
   const h24 = settings?.clock24h ?? true;
   const offline = sp.isError;
@@ -86,10 +88,12 @@ function Shell({ path, go }: { path: string; go: (p: string) => void }) {
     <div className="flex h-full flex-col">
       <header className="flex min-h-12 items-center justify-between gap-3 px-4 py-1">
         <span className="text-xl font-bold text-accent">Nexus</span>
-        <span className="flex gap-3">
+        <button className="flex min-h-11 flex-wrap items-center justify-end gap-x-3 rounded-lg px-2 active:bg-white/10" onClick={() => go("/homelab")} aria-label="System status, open Homelab">
           <Dot ok={!offline} label="Server" />
           <Dot ok={sp.data ? sp.data.connected && !sp.data.error : null} label="Spotify" />
-        </span>
+          <Dot ok={ha.data?.configured ? ha.data.reachable : null} label="Home" />
+          <Dot ok={lab.data ? homelabIssues(lab.data).length === 0 : null} label="Homelab" />
+        </button>
       </header>
       {offline && <div role="alert" className="bg-red-900/60 px-4 py-2 text-center">Nexus server unreachable. Retrying...</div>}
       <div className="flex min-h-0 flex-1 portrait:flex-col-reverse">

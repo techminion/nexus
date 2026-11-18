@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { fmtTime, useNow } from "./App";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, useSettings, useSpotify, type Action, type Device, type HaStatus, type Homelab as HomelabData, type Module, type Playback, type Settings, type Shortcut, type SpotifyState } from "./api";
+import { api, homelabIssues, useHa, useHomelab, useSettings, useSpotify, type Action, type Device, type Module, type Playback, type Settings, type Shortcut, type SpotifyState } from "./api";
 
 export const Icon = ({ d, stroke }: { d: string; stroke?: boolean }) => (
   <svg viewBox="0 0 24 24" className="h-6 w-6" fill={stroke ? "none" : "currentColor"} stroke={stroke ? "currentColor" : "none"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -262,7 +262,7 @@ export function Devices() {
 }
 
 function AlexaCard() {
-  const q = useQuery({ queryKey: ["ha"], queryFn: () => api<HaStatus>("GET", "/api/ha/status"), refetchInterval: 15_000 });
+  const q = useHa(15_000);
   const [msg, setMsg] = useState("");
   const send = useMutation({ mutationFn: (m: string) => api("POST", "/api/ha/announce", { message: m }), onSuccess: () => setMsg("") });
   const s = q.data;
@@ -302,14 +302,34 @@ function Bar({ label, value, text }: { label: string; value: number | null; text
 const uptime = (s: number) => `${Math.floor(s / 86400)}d ${Math.floor((s % 86400) / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
 
 export function Homelab() {
-  const q = useQuery({ queryKey: ["homelab"], queryFn: () => api<HomelabData>("GET", "/api/homelab"), refetchInterval: () => (document.hidden ? false : 10_000) });
+  const q = useHomelab(10_000);
+  const ha = useHa(15_000).data;
   if (q.isError) return <Notice>Homelab unavailable: {q.error.message}</Notice>;
   const d = q.data;
   if (!d) return <Notice>Loading...</Notice>;
   const { pi } = d;
   const temp = pi.tempC === null ? "" : pi.tempC >= 80 ? "text-red-400" : pi.tempC >= 70 ? "text-amber-400" : "";
+  const issues = homelabIssues(d);
+  const running = d.containers?.filter((c) => c.state === "running").length;
+  const up = d.hosts.filter((h) => h.up).length;
+  const echoTemp = ha?.sensors.find((s) => s.unit === "°C");
+  const stat = (label: string, value: string, ok: boolean | null) => (
+    <div className="flex flex-col">
+      <span className="text-xs uppercase tracking-wide text-dim">{label}</span>
+      <span className={`text-xl font-semibold tabular-nums ${ok === false ? "text-red-400" : ""}`}>{value}</span>
+    </div>
+  );
   return (
     <div className="grid gap-2 landscape:grid-cols-2 min-[1500px]:grid-cols-3">
+      <section className="card col-span-full flex flex-col gap-2" aria-label="Summary">
+        <div className="flex flex-wrap gap-x-8 gap-y-2">
+          {stat("Pi", `${pi.tempC === null ? "n/a" : `${pi.tempC.toFixed(0)}°C`} · ${pi.cpuPercent ?? "n/a"}% CPU`, pi.tempC === null ? null : pi.tempC < 70)}
+          {stat("Containers", d.containers ? `${running}/${d.containers.length} running` : "n/a", d.containers ? running === d.containers.length : null)}
+          {stat("Hosts", `${up}/${d.hosts.length} up`, d.hosts.length ? up === d.hosts.length : null)}
+          {stat("Home Assistant", !ha?.configured ? "not set up" : ha.reachable ? `online${echoTemp ? ` · ${echoTemp.state}°C room` : ""}` : "offline", ha?.configured ? ha.reachable : null)}
+        </div>
+        <p role="status" className={issues.length ? "text-red-400" : "text-dim"}>{issues.length ? issues.join(" · ") : "All systems normal."}</p>
+      </section>
       <section className="card flex flex-col gap-3" aria-label="Raspberry Pi">
         <h2 className="text-lg font-semibold">Raspberry Pi</h2>
         <div className="flex items-baseline justify-between gap-2">

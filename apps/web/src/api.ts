@@ -67,3 +67,19 @@ export interface Homelab {
   hosts: { name: string; target: string; up: boolean; latencyMs: number | null }[];
 }
 export interface HaStatus { configured: boolean; reachable: boolean; error: string | null; sensors: { id: string; name: string; state: string; unit: string | null }[] }
+
+// Shared query keys: the header and the pages poll the same cache; the fastest interval wins.
+export const useHomelab = (ms = 30_000) =>
+  useQuery({ queryKey: ["homelab"], queryFn: () => api<Homelab>("GET", "/api/homelab"), refetchInterval: () => (document.hidden ? false : ms) });
+export const useHa = (ms = 30_000) =>
+  useQuery({ queryKey: ["ha"], queryFn: () => api<HaStatus>("GET", "/api/ha/status"), refetchInterval: () => (document.hidden ? false : ms) });
+
+/** Human-readable problems; empty means healthy. */
+export function homelabIssues(d: Homelab): string[] {
+  const out: string[] = [];
+  if (d.pi.tempC !== null && d.pi.tempC >= 70) out.push(`Pi is hot (${d.pi.tempC.toFixed(1)}°C)`);
+  if (d.containers === null) out.push("Container status unavailable");
+  else for (const c of d.containers) if (c.state !== "running") out.push(`Container ${c.name} is ${c.state}`);
+  for (const h of d.hosts) if (!h.up) out.push(`Host ${h.name} is down`);
+  return out;
+}
