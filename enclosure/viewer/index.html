@@ -1,0 +1,251 @@
+<title>Desk Display Dock</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: workbench — 3D stage on the left, spec sheet + controls on the right, stacking on phones */
+:root {
+  --bg: #f3f2ef; --panel: #ffffff; --fg: #23252a; --muted: #6b6e76; --line: #dddbd5;
+  --accent: #d9692e; --stage: #e9e7e2; --chip: #f0eeea;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, Segoe UI, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #17181b; --panel: #1f2125; --fg: #e8e7e3; --muted: #9a9ca3; --line: #33363c;
+  --accent: #ee8450; --stage: #111214; --chip: #2a2d32; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #17181b; --panel: #1f2125; --fg: #e8e7e3; --muted: #9a9ca3; --line: #33363c;
+  --accent: #ee8450; --stage: #111214; --chip: #2a2d32; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 14px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px; }
+.wrap { max-width: 1280px; margin: 0 auto; display: grid; gap: 16px; }
+header h1 { font-size: 22px; font-weight: 600; margin: 0; text-wrap: balance; }
+header p { margin: 4px 0 0; color: var(--muted); max-width: 72ch; }
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.stage { position: relative; background: var(--stage); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; aspect-ratio: 16 / 10; max-width: 100%; }
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.hint { position: absolute; left: 12px; bottom: 10px; font: 12px var(--mono); color: var(--muted); pointer-events: none; }
+.views { position: absolute; right: 10px; top: 10px; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.tag { position: absolute; left: 0; top: 0; pointer-events: none; font: 500 11px var(--mono); color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; white-space: nowrap; transform: translate(-50%, -130%); }
+.tag::after { content: ""; position: absolute; left: 50%; top: 100%; width: 1px; height: 8px; background: var(--muted); }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; font: 13px var(--mono); color: var(--muted); }
+.side { display: grid; gap: 12px; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.label { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg button, .views button { font: 500 13px var(--mono); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+button:focus-visible, .toggle input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.toggle { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
+dt { color: var(--muted); }
+dd { margin: 0; font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; text-align: right; }
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+td.n { font-family: var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+ul.notes { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+ul.notes li::marker { color: var(--accent); }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Desk Display Dock</h1>
+    <p>A low wedge for the Waveshare 12.3″ 1920×720 touchscreen. The screen lies back at 30° from the desk, flush with the shell, above a plain 30 mm front face. Inside are a Raspberry Pi 4 and an ESP32 test bench. GPIO comes out on the right side and the ESP32 on the left. Drag to orbit, scroll to zoom.</p>
+  </header>
+
+  <div class="main">
+    <div class="stage" id="stage">
+      <div class="loading" id="loading">Loading model…</div>
+      <div class="views" id="views"></div>
+      <div class="hint">drag · orbit &nbsp; scroll · zoom &nbsp; right-drag · pan</div>
+    </div>
+
+    <div class="side">
+      <div class="card">
+        <div class="label">Show</div>
+        <div class="row">
+          <label class="toggle"><input type="checkbox" id="shell" checked> Shell</label>
+          <label class="toggle"><input type="checkbox" id="screen" checked> Screen</label>
+          <label class="toggle"><input type="checkbox" id="tags" checked> Labels</label>
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">Left side (ESP32)</div>
+        <div class="seg" id="left"></div>
+        <div class="label">Right side (Pi GPIO)</div>
+        <div class="seg" id="right"></div>
+      </div>
+      <div class="card">
+        <div class="label">Overall size</div>
+        <dl>
+          <dt>Width</dt><dd>316 mm</dd>
+          <dt>Depth</dt><dd>136 mm</dd>
+          <dt>Height</dt><dd>97 mm</dd>
+          <dt>Screen angle</dt><dd>30° from the desk</dd>
+          <dt>Front face / visible screen</dt><dd>30 / 36–91 mm</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="card">
+      <div class="label">Print list · every part fits a 220 × 220 mm bed</div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Part</th><th>Qty</th><th>Size (mm)</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>shell_left / shell_right</td><td class="n">1+1</td><td class="n">158 × 136 × 97</td><td>Print lying on the seam face so the sloped top needs no supports</td></tr>
+            <tr><td>bottom_left / bottom_right</td><td class="n">1+1</td><td class="n">105 / 205 × 129 × 3</td><td>Seam offset 50 mm so it bridges the shell seam</td></tr>
+            <tr><td>splice_plate</td><td class="n">1</td><td class="n">40 × 3 × 22</td><td>Inside the rear wall, across the seam</td></tr>
+            <tr><td>side_gpio / side_esp32 / side_blank</td><td class="n">1 each</td><td class="n">83 × 40 × 2</td><td>Flush; swap for your own layouts</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label">Hardware</div>
+      <ul class="notes">
+        <li>Screen held by 4 mm VHB tape on the inner ledge</li>
+        <li>2×20 IDC box header + 40-pin ribbon, about 10 cm (Pi to right side panel)</li>
+        <li>40 × 40 × 10 mm 5 V fan, exhausting through the rear wall beside the Pi ports</li>
+        <li>50 × 70 mm proto board for the ESP32</li>
+        <li>About 30× M3 heat-set inserts + M3 × 8 screws; 4× M2.5 for the Pi</li>
+        <li>4× 10 mm rubber feet</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="models.js"></script>
+<script>
+(async function () {
+  const W = 315.8, D = 136, TOP = 97;
+  const stage = document.getElementById("stage");
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  stage.prepend(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(35, 1.6, 5, 5000);
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  const VIEWS = {
+    "Inside": [[W / 2 - 40, 330, 150], [W / 2, 10, -70]],
+    "Front": [[W / 2 - 230, 300, 380], [W / 2, 40, -85]],
+    "Right side": [[W + 330, 160, -110], [W / 2 + 60, 40, -85]],
+    "Left side": [[-330, 140, 40], [W / 2 - 60, 30, -85]],
+    "Rear": [[W / 2 + 260, 260, -560], [W / 2, 40, -85]],
+  };
+  let setInside = () => {};
+  function view(name) { const [p, t] = VIEWS[name]; camera.position.set(...p); controls.target.set(...t); controls.update(); setInside(name === "Inside"); }
+  view("Front");
+  const vbox = document.getElementById("views");
+  Object.keys(VIEWS).forEach((n) => { const b = document.createElement("button"); b.type = "button"; b.textContent = n; b.onclick = () => view(n); vbox.appendChild(b); });
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x44464c, 0.75));
+  const key = new THREE.DirectionalLight(0xffffff, 0.75); key.position.set(-300, 500, 400); scene.add(key);
+  const rim = new THREE.DirectionalLight(0xffffff, 0.35); rim.position.set(500, 200, -400); scene.add(rim);
+  const grid = new THREE.GridHelper(800, 40);
+  grid.position.set(W / 2, -0.1, -D / 2); grid.material.transparent = true; grid.material.opacity = 0.25;
+  scene.add(grid);
+
+  function applyTheme() {
+    const cs = getComputedStyle(document.documentElement);
+    scene.background = new THREE.Color(cs.getPropertyValue("--stage").trim());
+    grid.material.color = new THREE.Color(cs.getPropertyValue("--muted").trim());
+  }
+  applyTheme();
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+  new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  // models ship base64-encoded in models.js (the host doesn't serve .glb)
+  const loader = new THREE.GLTFLoader();
+  const load = (f) => new Promise((ok, err) => {
+    const s = (window.DOCK_MODELS || {})[f + ".glb"];
+    if (!s) return err(new Error("missing " + f));
+    const bin = atob(s), buf = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    loader.parse(buf.buffer, "", (g) => ok(g.scene), err);
+  });
+  const tidy = (obj) => { obj.traverse((o) => { if (o.isMesh) { o.material.side = THREE.DoubleSide; o.material.metalness = 0; o.material.roughness = 0.65; } }); return obj; };
+
+  const names = ["shell", "inside", "display", "right_gpio", "right_blank", "left_esp32", "left_blank"];
+  const M = {};
+  try {
+    const objs = await Promise.all(names.map(load));
+    names.forEach((n, i) => { M[n] = tidy(objs[i]); scene.add(M[n]); });
+  } catch (e) {
+    document.getElementById("loading").textContent = "The 3D model didn't load. Reload the page to try again.";
+    return;
+  }
+  document.getElementById("loading").hidden = true;
+
+  const state = { left: "esp32", right: "gpio" };
+  try { Object.assign(state, JSON.parse(localStorage.getItem("dock-v3") || "{}")); } catch (e) {}
+  const save = () => { try { localStorage.setItem("dock-v3", JSON.stringify(state)); } catch (e) {} };
+  const LABEL = { blank: "Blank", gpio: "40-pin GPIO", esp32: "ESP32 USB + headers" };
+  const GROUPS = { right: ["gpio", "blank"], left: ["esp32", "blank"] };
+
+  Object.entries(GROUPS).forEach(([g, opts]) => {
+    const el = document.getElementById(g);
+    const apply = () => {
+      opts.forEach((o) => (M[g + "_" + o].visible = state[g] === o));
+      [...el.children].forEach((c, i) => c.setAttribute("aria-pressed", String(opts[i] === state[g])));
+    };
+    opts.forEach((o) => {
+      const b = document.createElement("button"); b.type = "button"; b.textContent = LABEL[o];
+      b.addEventListener("click", () => { state[g] = o; apply(); save(); });
+      el.appendChild(b);
+    });
+    apply();
+  });
+
+  const shellBox = document.getElementById("shell"), scrBox = document.getElementById("screen");
+  shellBox.addEventListener("change", () => (M.shell.visible = shellBox.checked));
+  scrBox.addEventListener("change", () => (M.display.visible = scrBox.checked));
+  setInside = (on) => {
+    shellBox.checked = scrBox.checked = !on;
+    M.shell.visible = M.display.visible = !on;
+  };
+
+  // part labels, positions in model mm (x across, y back, z up); shown when the shell is hidden
+  const TAGS = [
+    ["Raspberry Pi 4", [269, 75, 30]],
+    ["Pi USB / Ethernet out the back", [269, 128, 30]],
+    ["40 mm exhaust fan", [213, 128, 48]],
+    ["40-pin ribbon → GPIO socket", [304, 92, 36]],
+    ["ESP32 on 50×70 proto board", [49, 65, 22]],
+    ["ESP32 side panel (USB + headers)", [3, 92, 36]],
+    ["Rear cable slot", [72, 134, 18]],
+    ["Floor vents under the Pi", [269, 100, 4]],
+    ["Open bay: display cables, extras", [150, 75, 20]],
+    ["Screen ledge + VHB tape", [158, 14, 42]],
+  ];
+  const tagsBox = document.getElementById("tags");
+  const tagEls = TAGS.map(([t]) => { const d = document.createElement("div"); d.className = "tag"; d.textContent = t; stage.appendChild(d); return d; });
+  const v3 = new THREE.Vector3();
+  function placeTags() {
+    const show = tagsBox.checked && !M.shell.visible, w = stage.clientWidth, h = stage.clientHeight;
+    TAGS.forEach(([, [x, y, z]], i) => {
+      const el = tagEls[i];
+      v3.set(x, z, -y).project(camera);
+      el.hidden = !show || v3.z > 1;
+      el.style.left = ((v3.x + 1) / 2 * w) + "px"; el.style.top = ((1 - v3.y) / 2 * h) + "px";
+    });
+  }
+
+  function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+  new ResizeObserver(resize).observe(stage); resize();
+  (function tick() { controls.update(); renderer.render(scene, camera); placeTags(); requestAnimationFrame(tick); })();
+})();
+</script>

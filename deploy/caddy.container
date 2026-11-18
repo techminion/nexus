@@ -1,0 +1,20 @@
+[Unit]
+Description=Nexus HTTPS reverse proxy
+After=nexus.service
+Wants=nexus.service
+
+[Container]
+ContainerName=nexus-caddy
+Image=docker.io/library/caddy:2
+Network=nexus.network
+PublishPort=80:80
+PublishPort=443:443
+Volume=/etc/nexus/Caddyfile:/etc/caddy/Caddyfile:ro,Z
+Volume=nexus-caddy-data:/data
+
+[Service]
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

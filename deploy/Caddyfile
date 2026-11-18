@@ -1,0 +1,11 @@
+{
+	# Browsers send no SNI for IP addresses; serve the LAN-IP cert by default.
+	default_sni 192.168.31.128
+}
+
+192.168.31.128, epimetheus {
+	# shortcut: Caddy internal CA (self-signed), clients see a cert warning until they trust it; switch to a real domain/Tailscale cert if that bothers.
+	tls internal
+	encode gzip
+	reverse_proxy nexus:3000
+}
