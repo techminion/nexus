@@ -271,7 +271,7 @@ function AlexaCard() {
       <h2 className="text-lg font-semibold">Alexa / Home</h2>
       {q.isError ? <p role="status" className="text-dim">Unavailable: {q.error.message}</p>
         : !s ? <p className="text-dim">Loading...</p>
-        : !s.configured ? <p role="status" className="text-dim">Home Assistant is not configured. Set HA_URL, HA_TOKEN, HA_SENSORS and HA_ANNOUNCE_SERVICE on the server.</p>
+        : !s.configured ? <p role="status" className="text-dim">Home Assistant is not configured. Set HA_URL, HA_TOKEN, HA_SENSORS and HA_ANNOUNCE_ENTITY on the server.</p>
         : (
           <>
             <p role="status" className={s.reachable ? "text-accent" : "text-amber-400"}>{s.reachable ? "Home Assistant connected" : `Unavailable: ${s.error}`}</p>

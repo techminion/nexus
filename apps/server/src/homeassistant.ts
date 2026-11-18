@@ -1,13 +1,13 @@
 import { AppError } from "./spotify.ts";
 
-export interface HaCfg { url?: string; token?: string; sensors?: string; announceService?: string }
-const SERVICE = /^[a-z_]+\.[a-z0-9_]+$/;
+export interface HaCfg { url?: string; token?: string; sensors?: string; announceEntity?: string }
+const NOTIFY_ENTITY = /^notify\.[a-z0-9_]+$/;
 const ENTITY = /^[a-z_]+\.[a-z0-9_]+$/;
 
 export function createHomeAssistant(cfg: HaCfg, warn: (m: string) => void = () => {}) {
   const url = /^https?:\/\/[^/?#]+$/.test(cfg.url?.replace(/\/$/, "") ?? "") ? cfg.url!.replace(/\/$/, "") : (cfg.url && warn("HA_URL: must be an http(s) origin, HA disabled"), undefined);
   const sensors = (cfg.sensors ?? "").split(",").map((s) => s.trim()).filter((s) => s && (ENTITY.test(s) || (warn(`HA_SENSORS: ignoring "${s}"`), false)));
-  const service = cfg.announceService && (SERVICE.test(cfg.announceService) || (warn("HA_ANNOUNCE_SERVICE: invalid format, announce disabled"), false)) ? cfg.announceService : undefined;
+  const entity = cfg.announceEntity && (NOTIFY_ENTITY.test(cfg.announceEntity) || (warn("HA_ANNOUNCE_ENTITY: must be notify.<name>, announce disabled"), false)) ? cfg.announceEntity : undefined;
   const configured = !!(url && cfg.token);
   let cache: { at: number; value: unknown } | undefined;
   let polling: Promise<unknown> | undefined;
@@ -28,16 +28,16 @@ export function createHomeAssistant(cfg: HaCfg, warn: (m: string) => void = () =
   };
 
   return {
-    announceConfigured: configured && !!service,
+    announceConfigured: configured && !!entity,
     async status() {
       if (!configured) return { configured: false, reachable: false, error: null, sensors: [] };
       if (cache && Date.now() - cache.at < 10_000) return cache.value;
       return (polling ??= poll().finally(() => (polling = undefined)));
     },
     async announce(message: string) {
-      if (!configured || !service) throw new AppError(503, "not_configured", "Announcements are not configured on the server (HA_URL / HA_TOKEN / HA_ANNOUNCE_SERVICE).");
-      const [domain, name] = service.split(".");
-      const r = await call("POST", `/api/services/${domain}/${name}`, { message, data: { type: "announce" } });
+      if (!configured || !entity) throw new AppError(503, "not_configured", "Announcements are not configured on the server (HA_URL / HA_TOKEN / HA_ANNOUNCE_ENTITY).");
+      // Entity-based notify (HA 2024.5+), as exposed by the built-in Alexa Devices integration.
+      const r = await call("POST", "/api/services/notify/send_message", { entity_id: entity, message });
       if (!r.ok) throw new AppError(502, "ha", `Home Assistant returned ${r.status} for the announcement.`);
     },
   };

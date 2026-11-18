@@ -15,7 +15,7 @@ Desk dashboard: Spotify remote, clock/timer, five shortcuts. React + Vite web ap
 | `HA_URL` | for Alexa | Home Assistant base URL, e.g. `http://homeassistant:8123`. |
 | `HA_TOKEN` | for Alexa | HA long-lived access token (secret, never returned by the API). |
 | `HA_SENSORS` | no | Comma-separated allowlist of entity ids shown on Devices, e.g. `sensor.echo_dot_temperature`. |
-| `HA_ANNOUNCE_SERVICE` | for announce | `domain.service`, e.g. `notify.alexa_media_echo_dot`. |
+| `HA_ANNOUNCE_ENTITY` | for announce | notify entity, e.g. `notify.living_room_amey_s_echo_dot_announce` (Alexa Devices integration). |
 | `PORT` | no | default 3000 |
 | `NEXUS_DATA_DIR` | no | SQLite location, default `./data` (`/data` in the image) |
 
@@ -47,7 +47,7 @@ One-time setup on a fresh volume: HA 2026.x keeps HTTP settings in
 `"use_x_forwarded_for": true` and `"trusted_proxies": ["10.89.0.0/24"]` under
 `data.stable`, then start it. Without this, requests through Caddy return 400.
 
-Then: onboard in the HA UI, install HACS + Alexa Media Player, log in to Amazon there,
+Then: onboard in the HA UI, add the built-in Alexa Devices integration (log in to Amazon there),
 create a long-lived token (Profile → Security), and set in `.env`:
-`HA_URL=http://homeassistant:8123`, `HA_TOKEN`, `HA_ANNOUNCE_SERVICE` (e.g.
-`notify.alexa_media_echo_dot`) and optionally `HA_SENSORS`.
+`HA_URL=http://homeassistant:8123`, `HA_TOKEN`, `HA_ANNOUNCE_ENTITY` (e.g.
+`notify.<echo>_announce`) and optionally `HA_SENSORS`.

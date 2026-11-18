@@ -90,7 +90,7 @@ test("homelab and ha status: auth, graceful absence, no token leak; announce cal
   const app = await buildApp({
     password: "pw", secret: "s".repeat(32), dataDir: ":memory:",
     homelab: { containersFile: "/nonexistent/containers.json", hosts: "local=127.0.0.1:1" },
-    ha: { url: "http://ha.test:8123", token, sensors: "sensor.echo_temp", announceService: "notify.alexa_media_echo" },
+    ha: { url: "http://ha.test:8123", token, sensors: "sensor.echo_temp", announceEntity: "notify.echo_announce" },
   });
   assert.equal((await app.inject("/api/homelab")).statusCode, 401);
   assert.equal((await app.inject("/api/ha/status")).statusCode, 401);
@@ -118,9 +118,9 @@ test("homelab and ha status: auth, graceful absence, no token leak; announce cal
     calls.length = 0;
     const a = await app.inject({ method: "POST", url: "/api/ha/announce", cookies, payload: { message: "Dinner" } });
     assert.equal(a.statusCode, 200);
-    assert.equal(calls[0].url, "http://ha.test:8123/api/services/notify/alexa_media_echo");
+    assert.equal(calls[0].url, "http://ha.test:8123/api/services/notify/send_message");
     assert.equal((calls[0].init.headers as Record<string, string>).authorization, `Bearer ${token}`);
-    assert.deepEqual(JSON.parse(calls[0].init.body as string), { message: "Dinner", data: { type: "announce" } });
+    assert.deepEqual(JSON.parse(calls[0].init.body as string), { entity_id: "notify.echo_announce", message: "Dinner" });
     assert.equal((await app.inject({ method: "POST", url: "/api/ha/announce", cookies, payload: { message: "" } })).statusCode, 400);
     // announce as a shortcut action runs server-side
     const settings = { ...DEFAULT_SETTINGS, shortcuts: DEFAULT_SETTINGS.shortcuts.map((s, i) => (i === 0 ? { label: "A", action: { type: "announce", message: "Hi" } } : s)) };
