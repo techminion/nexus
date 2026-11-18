@@ -3,7 +3,7 @@ import { fmtTime, useNow } from "./App";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, useSettings, useSpotify, type Action, type Device, type Module, type Playback, type Settings, type Shortcut, type SpotifyState } from "./api";
 
-const Icon = ({ d, stroke }: { d: string; stroke?: boolean }) => (
+export const Icon = ({ d, stroke }: { d: string; stroke?: boolean }) => (
   <svg viewBox="0 0 24 24" className="h-6 w-6" fill={stroke ? "none" : "currentColor"} stroke={stroke ? "currentColor" : "none"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <path d={d} />
   </svg>

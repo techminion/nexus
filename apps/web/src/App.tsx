@@ -1,14 +1,14 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, useSettings, useSpotify, type Module } from "./api";
-import { Dashboard, Devices, Music, SettingsScreen, Timers } from "./screens";
+import { Dashboard, Devices, Icon, Music, SettingsScreen, Timers } from "./screens";
 
-const NAV: { id: Module; label: string; path: string }[] = [
-  { id: "dashboard", label: "Dashboard", path: "/" },
-  { id: "music", label: "Music", path: "/music" },
-  { id: "devices", label: "Devices", path: "/devices" },
-  { id: "timer", label: "Timer", path: "/timer" },
-  { id: "settings", label: "Settings", path: "/settings" },
+const NAV: { id: Module; label: string; path: string; icon: string }[] = [
+  { id: "dashboard", label: "Dashboard", path: "/", icon: "M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z" },
+  { id: "music", label: "Music", path: "/music", icon: "M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" },
+  { id: "devices", label: "Devices", path: "/devices", icon: "M4 4h16v11H4zM8 20h8M12 15v5" },
+  { id: "timer", label: "Timer", path: "/timer", icon: "M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM12 9v4l2 2M10 2h4" },
+  { id: "settings", label: "Settings", path: "/settings", icon: "M4 6h16M4 12h16M4 18h16M8 4v4M16 10v4M10 16v4" },
 ];
 const moduleOf = (p: string): Module => NAV.find((n) => n.path === p)?.id ?? "dashboard";
 
@@ -94,8 +94,8 @@ function Shell({ path, go }: { path: string; go: (p: string) => void }) {
       <div className="flex min-h-0 flex-1 portrait:flex-col-reverse">
         <nav className="flex gap-2 p-2 landscape:flex-col landscape:justify-center portrait:justify-around" aria-label="Main">
           {NAV.map((n) => (
-            <button key={n.id} onClick={() => go(n.path)} aria-current={mod === n.id} className={`btn px-3 text-sm landscape:min-w-24 ${mod === n.id ? "btn-accent" : ""}`}>
-              {n.label}
+            <button key={n.id} onClick={() => go(n.path)} aria-current={mod === n.id} aria-label={n.label} title={n.label} className={`btn px-3 ${mod === n.id ? "btn-accent" : ""}`}>
+              <Icon d={n.icon} stroke />
             </button>
           ))}
         </nav>
