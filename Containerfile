@@ -7,7 +7,7 @@ COPY apps/server/package.json apps/server/
 RUN pnpm install --frozen-lockfile
 COPY apps apps
 RUN pnpm build
-RUN pnpm --filter @nexus/server deploy --prod --legacy /out
+RUN pnpm --filter @nexus/server deploy --prod --legacy --prefer-offline /out
 
 FROM node:22-bookworm-slim
 WORKDIR /app
