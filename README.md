@@ -36,3 +36,18 @@ The server sets `Secure` cookies only when the request is HTTPS (`trustProxy` is
 2. Add the redirect URI `PUBLIC_URL/api/spotify/callback`. Spotify requires HTTPS for non-loopback redirect URIs.
 3. Put the Client ID in `SPOTIFY_CLIENT_ID`, then use Settings > Connect Spotify.
 4. Playback control needs a Spotify Premium account.
+
+## Home Assistant (Alexa bridge)
+
+Runs as the `homeassistant` container on the Pi, reachable only over HTTPS at
+`https://192.168.31.128:8443` (via Caddy; no plain-HTTP port is published).
+
+One-time setup on a fresh volume: HA 2026.x keeps HTTP settings in
+`/config/.storage/http` (YAML `http:` is ignored once migrated). With HA stopped, set
+`"use_x_forwarded_for": true` and `"trusted_proxies": ["10.89.0.0/24"]` under
+`data.stable`, then start it. Without this, requests through Caddy return 400.
+
+Then: onboard in the HA UI, install HACS + Alexa Media Player, log in to Amazon there,
+create a long-lived token (Profile → Security), and set in `.env`:
+`HA_URL=http://homeassistant:8123`, `HA_TOKEN`, `HA_ANNOUNCE_SERVICE` (e.g.
+`notify.alexa_media_echo_dot`) and optionally `HA_SENSORS`.
