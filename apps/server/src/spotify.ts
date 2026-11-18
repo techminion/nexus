@@ -123,8 +123,10 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
     if (r.status === 404) throw new AppError(404, "no_device", "No active Spotify device. Open Spotify on a device or pick one in Devices.");
     if (r.status === 403) throw new AppError(403, "premium", "Spotify refused this action (Premium is required for playback control).");
     if (!r.ok) throw new AppError(502, "spotify", `Spotify returned ${r.status}.`);
-    if (r.status === 204 || r.status === 202) return null;
-    return r.json();
+    // Control endpoints may answer 200 with a non-JSON body (e.g. an opaque id); only GETs need data.
+    if (!r.headers.get("content-type")?.includes("json")) return null;
+    const text = await r.text();
+    return text ? JSON.parse(text) : null;
   }
 
   function mapPlayback(j: any) {

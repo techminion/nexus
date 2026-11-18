@@ -9,9 +9,6 @@ Pull=never
 Network=nexus.network
 Volume=nexus-data:/data
 EnvironmentFile=/etc/nexus/nexus.env
-HealthCmd=node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
-HealthInterval=30s
-HealthOnFailure=kill
 
 [Service]
 Restart=always

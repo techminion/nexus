@@ -1,3 +1,5 @@
+import { createSpotify } from "../src/spotify.ts";
+import { openKv } from "../src/db.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { validateAction, validateSettings, DEFAULT_SETTINGS } from "../src/actions.ts";
@@ -49,4 +51,16 @@ test("auth guard and settings", async () => {
   await app.inject({ method: "POST", url: "/api/logout", cookies });
   assert.equal((await app.inject({ url: "/api/settings", cookies })).statusCode, 401);
   await app.close();
+});
+
+test("spotify control tolerates non-JSON 200 bodies", async () => {
+  const kv = openKv(":memory:");
+  kv.set("spotify", { access: "a", refresh: "r", expires: Date.now() + 3_600_000 });
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("Pz5TQ6-KLF", { status: 200, headers: { "content-type": "text/plain" } });
+  try {
+    await createSpotify(kv, { clientId: "c", publicUrl: "https://x" }).cmd("POST", "/me/player/next");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });
