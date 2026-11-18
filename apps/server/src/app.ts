@@ -147,7 +147,7 @@ export async function buildApp(cfg: Config) {
   app.get("/api/spotify/devices", async () => ({ devices: await spotify.devices() }));
   app.post("/api/spotify/disconnect", async () => (spotify.disconnect(), { ok: true }));
   const ok = { ok: true };
-  app.put("/api/spotify/play", async () => (await spotify.cmd("PUT", "/me/player/play"), ok));
+  app.put("/api/spotify/play", async () => (await spotify.play(), ok));
   app.put("/api/spotify/pause", async () => (await spotify.cmd("PUT", "/me/player/pause"), ok));
   app.put("/api/spotify/next", async () => (await spotify.cmd("POST", "/me/player/next"), ok));
   app.put("/api/spotify/previous", async () => (await spotify.cmd("POST", "/me/player/previous"), ok));

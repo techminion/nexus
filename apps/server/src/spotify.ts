@@ -35,6 +35,8 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
   let gen = 0; // bumped on disconnect so in-flight refreshes cannot resurrect tokens
   let refreshing: Promise<Tokens> | undefined;
   let cache: { at: number; value: unknown } | undefined;
+  // Last real playback: Spotify briefly reports no player (204 / item:null) around pause and when an idle device sleeps.
+  let last: { playback: NonNullable<ReturnType<typeof mapPlayback>>; deviceId: string | null; stale: boolean } | undefined;
   let likedCache: { uri: string; value: boolean | null; exp?: number } | undefined;
   let likeVer = 0; // bumped around like writes so older in-flight lookups cannot overwrite them // one library check per track change
   const lists = new Map<string, { at: number; gen: number; value: unknown }>(); // playlists/recent, ~60s
@@ -90,7 +92,7 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
   function reset() {
     gen++;
     refreshing = undefined;
-    cache = likedCache = undefined;
+    cache = likedCache = last = undefined;
     likeVer++;
     lists.clear();
   }
@@ -187,7 +189,10 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
     let value;
     const g = gen, v = likeVer;
     try {
-      const playback = mapPlayback(await api("GET", "/me/player"));
+      const raw = await api("GET", "/me/player");
+      let playback = mapPlayback(raw);
+      if (playback?.track) { if (g === gen) last = { playback, deviceId: raw.device?.id ?? null, stale: false }; }
+      else if (last) { last.stale = true; playback = { ...last.playback, is_playing: false }; }
       if (playback?.uri && TRACK_RE.test(playback.uri)) playback.liked = await likedFor(playback.uri);
       value = { connected: true, scopesOk: scopesOk(), error: null, playback };
     } catch (e) {
@@ -275,6 +280,8 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
   }
 
   return {
+    // Resuming a stale (vanished) player needs the device named explicitly, or Spotify answers 404.
+    play: () => cmd("PUT", "/me/player/play", last?.stale && last.deviceId ? { device_id: last.deviceId } : undefined),
     login, callback, state, devices, cmd, transferByName, like, queue, playlists, recent, playItem,
     disconnect: () => { reset(); kv.del("spotify"); },
   };

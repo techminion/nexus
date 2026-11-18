@@ -303,3 +303,29 @@ test("spotify caches: reconnect clears, liked race guard, null entries, paginati
     globalThis.fetch = realFetch;
   }
 });
+
+test("spotify keeps last track when Spotify briefly reports no player; play targets that device", async () => {
+  const kv = openKv(":memory:");
+  kv.set("spotify", { access: "a", refresh: "r", expires: Date.now() + 3_600_000 });
+  const realFetch = globalThis.fetch;
+  const calls: string[] = [];
+  let player: object | null = { is_playing: true, progress_ms: 1, device: { id: "dev1", name: "Echo" }, item: { name: "Song", uri: "spotify:episode:0000000000000000000000", artists: [], duration_ms: 9 } };
+  globalThis.fetch = async (u) => {
+    calls.push(String(u));
+    if (String(u).endsWith("/me/player")) return player ? new Response(JSON.stringify(player), { headers: { "content-type": "application/json" } }) : new Response(null, { status: 204 });
+    return new Response(null, { status: 204 });
+  };
+  try {
+    const sp = createSpotify(kv, { clientId: "c", publicUrl: "https://x" });
+    assert.equal((await sp.state() as any).playback.is_playing, true);
+    player = null; // Spotify's 204 right after a pause
+    await new Promise((r) => setTimeout(r, 1100)); // past the 1s state cache
+    const s = (await sp.state()) as any;
+    assert.equal(s.playback.track, "Song");
+    assert.equal(s.playback.is_playing, false);
+    await sp.play();
+    assert.match(calls.at(-1)!, /\/me\/player\/play\?device_id=dev1$/);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
