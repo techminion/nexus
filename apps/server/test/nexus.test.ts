@@ -40,5 +40,13 @@ test("auth guard and settings", async () => {
   assert.equal(bad.statusCode, 400);
   const st = await app.inject({ url: "/api/spotify/state", cookies });
   assert.equal(st.json().connected, false);
+  // Encoded paths route to /api/* after decoding; the guard must still apply.
+  assert.equal((await app.inject("/%61pi/settings")).statusCode, 401);
+  assert.equal((await app.inject("/api/%73ettings")).statusCode, 401);
+  assert.equal((await app.inject("/api/spotify/callback?code=x&state=y")).statusCode, 401);
+  // A forged unsigned cookie is rejected; logout revokes the session server-side.
+  assert.equal((await app.inject({ url: "/api/settings", cookies: { [c.name]: "1" } })).statusCode, 401);
+  await app.inject({ method: "POST", url: "/api/logout", cookies });
+  assert.equal((await app.inject({ url: "/api/settings", cookies })).statusCode, 401);
   await app.close();
 });

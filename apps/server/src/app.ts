@@ -1,7 +1,7 @@
 import Fastify from "fastify";
 import cookie from "@fastify/cookie";
 import fstatic from "@fastify/static";
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync } from "node:fs";
 import { openKv } from "./db.ts";
 import { AppError, createSpotify } from "./spotify.ts";
@@ -18,25 +18,40 @@ export interface Config {
 
 const sha = (s: string) => createHash("sha256").update(s).digest();
 const COOKIE = "nexus_session";
-const OPEN = new Set(["/api/health", "/api/login", "/api/session", "/api/spotify/callback"]);
+// Matched against the route pattern (post-decoding), so encoded paths cannot dodge the guard.
+const OPEN = new Set(["/api/health", "/api/login", "/api/session"]);
+const SESSION_TTL = 365 * 24 * 3600 * 1000;
 const percent = { type: "object", required: ["percent"], additionalProperties: false, properties: { percent: { type: "integer", minimum: 0, maximum: 100 } } };
 const stateBody = (e: string[]) => ({ type: "object", required: ["state"], additionalProperties: false, properties: { state: e.length ? { enum: e } : { type: "boolean" } } });
 
 export async function buildApp(cfg: Config) {
-  const app = Fastify({ trustProxy: true, logger: process.env.NODE_ENV !== "test" && { level: "info", redact: ["req.headers.cookie", "req.headers.authorization"] } });
+  const app = Fastify({ trustProxy: true, logger: process.env.NODE_ENV !== "test" && {
+    level: "info",
+    // Query strings are dropped: the OAuth callback carries the authorization code.
+    serializers: { req: (req: { method: string; url: string; ip: string }) => ({ method: req.method, url: req.url.split("?")[0], remoteAddress: req.ip }) },
+  } });
   await app.register(cookie, { secret: cfg.secret });
   const kv = openKv(cfg.dataDir);
   const spotify = createSpotify(kv, { clientId: cfg.clientId, publicUrl: cfg.publicUrl });
   const settings = (): Settings => kv.get<Settings>("settings") ?? DEFAULT_SETTINGS;
 
-  const authed = (req: { cookies: Record<string, string | undefined>; unsignCookie: (v: string) => { valid: boolean } }) => {
+  // Random session ids kept server-side so logout revokes them; sessions are tied to the current password.
+  const pwTag = sha(cfg.password).toString("hex").slice(0, 16);
+  const sessions = (): Record<string, { exp: number; pw: string }> => kv.get("sessions") ?? {};
+  const sessionId = (req: { cookies: Record<string, string | undefined>; unsignCookie: (v: string) => { valid: boolean; value: string | null } }) => {
     const c = req.cookies[COOKIE];
-    return !!c && req.unsignCookie(c).valid;
+    const u = c ? req.unsignCookie(c) : undefined;
+    return u?.valid ? u.value ?? undefined : undefined;
+  };
+  const authed = (req: Parameters<typeof sessionId>[0]) => {
+    const id = sessionId(req);
+    const s = id ? sessions()[id] : undefined;
+    return !!s && s.exp > Date.now() && s.pw === pwTag;
   };
 
   app.addHook("onRequest", async (req, reply) => {
-    const path = req.url.split("?")[0];
-    if (path.startsWith("/api/") && !OPEN.has(path) && !authed(req)) return reply.code(401).send({ error: { code: "unauthorized", message: "Login required." } });
+    const route = req.routeOptions.url;
+    if (route?.startsWith("/api/") && !OPEN.has(route) && !authed(req)) return reply.code(401).send({ error: { code: "unauthorized", message: "Login required." } });
   });
 
   app.setErrorHandler((err: any, _req, reply) => {
@@ -60,10 +75,16 @@ export async function buildApp(cfg: Config) {
     if (++cur.n > 10) return reply.code(429).send({ error: { code: "rate_limited", message: "Too many attempts. Try again in a minute." } });
     if (!timingSafeEqual(sha((req.body as { password: string }).password), sha(cfg.password))) return reply.code(401).send({ error: { code: "bad_password", message: "Wrong password." } });
     attempts.delete(req.ip);
-    reply.setCookie(COOKIE, "1", { signed: true, httpOnly: true, sameSite: "lax", secure: req.protocol === "https", path: "/", maxAge: 365 * 24 * 3600 });
+    const id = randomBytes(24).toString("base64url");
+    const now2 = Date.now();
+    const live = Object.fromEntries(Object.entries(sessions()).filter(([, v]) => v.exp > now2 && v.pw === pwTag));
+    kv.set("sessions", { ...live, [id]: { exp: now2 + SESSION_TTL, pw: pwTag } });
+    reply.setCookie(COOKIE, id, { signed: true, httpOnly: true, sameSite: "lax", secure: req.protocol === "https", path: "/", maxAge: SESSION_TTL / 1000 });
     return { ok: true };
   });
-  app.post("/api/logout", async (_req, reply) => {
+  app.post("/api/logout", async (req, reply) => {
+    const id = sessionId(req);
+    if (id) { const s = sessions(); delete s[id]; kv.set("sessions", s); }
     reply.clearCookie(COOKIE, { path: "/" });
     return { ok: true };
   });

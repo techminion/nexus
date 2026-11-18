@@ -18,5 +18,6 @@ ssh "$HOST" 'set -e
     echo "Created /etc/nexus/nexus.env (edit SPOTIFY_CLIENT_ID, then: sudo systemctl restart nexus)"
   fi
   sudo systemctl daemon-reload
-  sudo systemctl restart nexus-network nexus caddy
+  sudo systemctl start nexus-network  # restarting it would orphan running containers
+  sudo systemctl restart nexus caddy
   sudo podman image prune -f >/dev/null'

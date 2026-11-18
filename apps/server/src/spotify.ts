@@ -20,6 +20,8 @@ const b64u = (b: Buffer) => b.toString("base64url");
 export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: string }) {
   const pending = new Map<string, { verifier: string; exp: number }>();
   let blockedUntil = 0; // set on 429
+  let gen = 0; // bumped on disconnect so in-flight refreshes cannot resurrect tokens
+  let refreshing: Promise<Tokens> | undefined;
   let cache: { at: number; value: unknown } | undefined;
   const redirectUri = () => `${env.publicUrl}/api/spotify/callback`;
   const tokens = () => kv.get<Tokens>("spotify");
@@ -50,6 +52,7 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
     } catch {
       throw new AppError(502, "network", "Cannot reach Spotify.");
     }
+    if (r.status === 429) throw rateLimited(r);
     if (!r.ok) {
       if (r.status === 400 || r.status === 401) throw new AppError(401, "auth", "Spotify authorization failed or expired. Reconnect Spotify.");
       throw new AppError(502, "spotify", `Spotify token endpoint returned ${r.status}.`);
@@ -65,15 +68,28 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
     kv.set("spotify", await tokenRequest({ grant_type: "authorization_code", code, redirect_uri: redirectUri(), code_verifier: p.verifier }));
   }
 
-  async function refresh(): Promise<Tokens> {
+  function rateLimited(r: Response) {
+    const s = Math.max(Number(r.headers.get("retry-after")) || 5, 1);
+    blockedUntil = Date.now() + s * 1000;
+    return new AppError(429, "rate_limited", `Spotify is rate limiting requests. Retrying in ${s}s.`, s);
+  }
+
+  // Coalesced: Spotify may rotate the refresh token, so concurrent refreshes would invalidate each other.
+  function refresh(): Promise<Tokens> {
+    return (refreshing ??= doRefresh().finally(() => (refreshing = undefined)));
+  }
+
+  async function doRefresh(): Promise<Tokens> {
+    const g = gen;
     const t = tokens();
     if (!t?.refresh) throw new AppError(401, "not_connected", "Spotify is not connected.");
     try {
       const n = await tokenRequest({ grant_type: "refresh_token", refresh_token: t.refresh });
+      if (g !== gen) throw new AppError(401, "not_connected", "Spotify is not connected.");
       kv.set("spotify", n);
       return n;
     } catch (e) {
-      if (e instanceof AppError && e.code === "auth") kv.del("spotify");
+      if (e instanceof AppError && e.code === "auth" && g === gen) kv.del("spotify");
       throw e;
     }
   }
@@ -102,11 +118,7 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
       await refresh();
       return api(method, path, opts, true);
     }
-    if (r.status === 429) {
-      const s = Math.min(Math.max(Number(r.headers.get("retry-after")) || 5, 1), 300);
-      blockedUntil = Date.now() + s * 1000;
-      throw new AppError(429, "rate_limited", `Spotify is rate limiting requests. Retrying in ${s}s.`, s);
-    }
+    if (r.status === 429) throw rateLimited(r);
     if (r.status === 401) throw new AppError(401, "auth", "Spotify authorization expired. Reconnect Spotify.");
     if (r.status === 404) throw new AppError(404, "no_device", "No active Spotify device. Open Spotify on a device or pick one in Devices.");
     if (r.status === 403) throw new AppError(403, "premium", "Spotify refused this action (Premium is required for playback control).");
@@ -166,6 +178,6 @@ export function createSpotify(kv: Kv, env: { clientId?: string; publicUrl?: stri
 
   return {
     login, callback, state, devices, cmd, transferByName,
-    disconnect: () => { kv.del("spotify"); cache = undefined; },
+    disconnect: () => { gen++; kv.del("spotify"); cache = undefined; },
   };
 }
