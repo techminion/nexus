@@ -1,20 +1,20 @@
 @import "tailwindcss";
 
-/* Neobrutalism: cream page, white blocks, thick black outlines, hard offset shadows. */
+/* Dark neobrutalism: near-black page, dark blocks, thick cream outlines, hard offset shadows. */
 @theme {
-  --color-bg: #fdf3dc;
-  --color-surface: #ffffff;
-  --color-raised: #fff4b8;
-  --color-line: #000000;
-  --color-fg: #111111;
-  --color-dim: #4a4a4a;
+  --color-bg: #111111;
+  --color-surface: #1c1c1c;
+  --color-raised: #2b2716;
+  --color-line: #f2ead3;
+  --color-fg: #f7f3e8;
+  --color-dim: #b8b0a0;
   --color-accent: #3ddc84;
-  --color-ok: #0a6b35;
-  --color-warn: #a35200;
-  --color-bad: #e5383b;
+  --color-ok: #3ddc84;
+  --color-warn: #ffb703;
+  --color-bad: #ff5a5f;
 }
 
-:root { color-scheme: only light; } /* stop Android WebView force-darkening the light theme */
+:root { color-scheme: only dark; } /* tell Android WebView the page is already dark, so it never recolours it */
 html, body, #root { height: 100%; }
 body { background: var(--color-bg); color: var(--color-fg); font-family: ui-rounded, system-ui, sans-serif; overscroll-behavior: none; }
 

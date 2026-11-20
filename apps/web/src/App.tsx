@@ -41,7 +41,7 @@ function Login() {
   };
   return (
     <form onSubmit={submit} className="mx-auto flex h-full max-w-sm flex-col justify-center gap-3 p-6">
-      <h1 className="w-fit -rotate-2 border-[3px] border-line bg-accent px-3 py-1 text-3xl font-black shadow-[4px_4px_0_var(--color-line)]">Nexus</h1>
+      <h1 className="w-fit -rotate-2 border-[3px] border-line bg-accent px-3 py-1 text-3xl font-black text-black shadow-[4px_4px_0_var(--color-line)]">Nexus</h1>
       <input className="input" type="password" autoFocus placeholder="Password" value={pw} onChange={(e) => setPw(e.target.value)} />
       {err && <p role="alert" className="text-bad">{err}</p>}
       <button className="btn btn-accent" type="submit">Log in</button>
@@ -88,7 +88,7 @@ function Shell({ path, go }: { path: string; go: (p: string) => void }) {
   return (
     <div className="flex h-full flex-col">
       <header className="flex min-h-12 items-center justify-between gap-3 px-4 py-1">
-        <span className="-rotate-2 border-[3px] border-line bg-accent px-2 text-xl font-black shadow-[3px_3px_0_var(--color-line)]">Nexus</span>
+        <span className="-rotate-2 border-[3px] border-line bg-accent px-2 text-xl font-black text-black shadow-[3px_3px_0_var(--color-line)]">Nexus</span>
         <button className="flex min-h-11 flex-wrap items-center justify-end gap-x-3 rounded-lg px-2 active:bg-black/10" onClick={() => go("/homelab")} aria-label="System status, open Homelab">
           <Dot ok={!offline} label="Server" />
           <Dot ok={sp.data ? sp.data.connected && !sp.data.error : null} label="Spotify" />
