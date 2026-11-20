@@ -3,7 +3,7 @@
 	default_sni 192.168.31.128
 }
 
-192.168.31.128, epimetheus {
+192.168.31.128, epimetheus, epimetheus.lan {
 	# shortcut: Caddy internal CA (self-signed), clients see a cert warning until they trust it; switch to a real domain/Tailscale cert if that bothers.
 	tls internal
 	encode gzip
@@ -11,7 +11,7 @@
 }
 
 # Home Assistant admin UI (Alexa Media Player login happens here, so HTTPS only).
-192.168.31.128:8443, epimetheus:8443 {
+192.168.31.128:8443, epimetheus:8443, epimetheus.lan:8443 {
 	tls internal
 	reverse_proxy homeassistant:8123
 }
