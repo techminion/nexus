@@ -178,8 +178,7 @@ function Shortcuts({ go }: { go: (p: string) => void }) {
     onError: (e) => setMsg(e.message),
   });
   if (!settings) return null;
-  if (settings.shortcuts.every((s) => s.action.type === "none"))
-    return <section aria-label="Shortcuts" className="card text-dim">No shortcuts yet. Set them up in Settings.</section>;
+  if (settings.shortcuts.every((s) => s.action.type === "none")) return null;
   return (
     <section aria-label="Shortcuts">
       <div className="grid grid-cols-2 gap-2 landscape:max-[1100px]:grid-cols-3 min-[1100px]:grid-cols-3">
