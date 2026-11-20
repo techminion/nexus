@@ -15,7 +15,7 @@ ssh "$HOST" 'set -e
   sudo install -m 644 deploy/nexus-tmpfiles.conf /etc/tmpfiles.d/nexus.conf
   sudo systemd-tmpfiles --create /etc/tmpfiles.d/nexus.conf
   if ! sudo test -f /etc/nexus/nexus.env; then
-    printf "NEXUS_PASSWORD=%s\nSESSION_SECRET=%s\nPUBLIC_URL=https://192.168.31.128\nSPOTIFY_CLIENT_ID=\n" \
+    printf "NEXUS_PASSWORD=%s\nSESSION_SECRET=%s\nPUBLIC_URL=https://epimetheus.lan\nSPOTIFY_CLIENT_ID=\n" \
       "$(openssl rand -base64 12 | tr -d /+=)" "$(openssl rand -hex 32)" | sudo tee /etc/nexus/nexus.env >/dev/null
     sudo chmod 600 /etc/nexus/nexus.env
     echo "Created /etc/nexus/nexus.env (edit SPOTIFY_CLIENT_ID, then: sudo systemctl restart nexus)"

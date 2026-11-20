@@ -9,7 +9,7 @@ Desk dashboard: Spotify remote, clock/timer, five shortcuts. React + Vite web ap
 | `NEXUS_PASSWORD` | yes | Login password. Server refuses to start without it. |
 | `SESSION_SECRET` | yes | Signs the session cookie (use 32+ random chars). |
 | `SPOTIFY_CLIENT_ID` | for Spotify | PKCE, no client secret. |
-| `PUBLIC_URL` | for Spotify | e.g. `https://192.168.31.128`; redirect URI is `PUBLIC_URL/api/spotify/callback`. |
+| `PUBLIC_URL` | for Spotify | e.g. `https://epimetheus.lan`; redirect URI is `PUBLIC_URL/api/spotify/callback`. |
 | `NEXUS_CONTAINERS_FILE` | no | `podman ps -a --format json` snapshot written by a host timer, default `/run/nexus/containers.json`. |
 | `NEXUS_HOSTS` | no | Hosts to TCP-check: `name=host:port,...` e.g. `nas=192.168.31.10:22`. |
 | `HA_URL` | for Alexa | Home Assistant base URL, e.g. `http://homeassistant:8123`. |
