@@ -41,9 +41,9 @@ function Login() {
   };
   return (
     <form onSubmit={submit} className="mx-auto flex h-full max-w-sm flex-col justify-center gap-3 p-6">
-      <h1 className="text-3xl font-bold text-accent">Nexus</h1>
+      <h1 className="w-fit -rotate-2 border-[3px] border-line bg-accent px-3 py-1 text-3xl font-black shadow-[4px_4px_0_var(--color-line)]">Nexus</h1>
       <input className="input" type="password" autoFocus placeholder="Password" value={pw} onChange={(e) => setPw(e.target.value)} />
-      {err && <p role="alert" className="text-red-400">{err}</p>}
+      {err && <p role="alert" className="text-bad">{err}</p>}
       <button className="btn btn-accent" type="submit">Log in</button>
     </form>
   );
@@ -52,7 +52,7 @@ function Login() {
 function Dot({ ok, label }: { ok: boolean | null; label: string }) {
   return (
     <span className="flex items-center gap-1.5 text-sm text-dim" title={label}>
-      <span className={`h-2.5 w-2.5 rounded-full ${ok === null ? "bg-dim" : ok ? "bg-accent" : "bg-red-500"}`} />
+      <span className={`h-3 w-3 rounded-full border-2 border-line ${ok === null ? "bg-dim" : ok ? "bg-accent" : "bg-bad"}`} />
       {label}
     </span>
   );
@@ -79,24 +79,24 @@ function Shell({ path, go }: { path: string; go: (p: string) => void }) {
 
   if (ambient)
     return (
-      <button className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black" onClick={() => setFull(false)} aria-label="Exit clock mode">
+      <button className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black text-white" onClick={() => setFull(false)} aria-label="Exit clock mode">
         <span className="text-[min(28vw,40vh)] font-light leading-none tabular-nums">{fmtTime(now, h24)}</span>
-        <span className="mt-4 text-[min(5vw,6vh)] text-dim">{now.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</span>
+        <span className="mt-4 text-[min(5vw,6vh)] text-white/60">{now.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</span>
       </button>
     );
 
   return (
     <div className="flex h-full flex-col">
       <header className="flex min-h-12 items-center justify-between gap-3 px-4 py-1">
-        <span className="text-xl font-bold text-accent">Nexus</span>
-        <button className="flex min-h-11 flex-wrap items-center justify-end gap-x-3 rounded-lg px-2 active:bg-white/10" onClick={() => go("/homelab")} aria-label="System status, open Homelab">
+        <span className="-rotate-2 border-[3px] border-line bg-accent px-2 text-xl font-black shadow-[3px_3px_0_var(--color-line)]">Nexus</span>
+        <button className="flex min-h-11 flex-wrap items-center justify-end gap-x-3 rounded-lg px-2 active:bg-black/10" onClick={() => go("/homelab")} aria-label="System status, open Homelab">
           <Dot ok={!offline} label="Server" />
           <Dot ok={sp.data ? sp.data.connected && !sp.data.error : null} label="Spotify" />
           <Dot ok={ha.data?.configured ? ha.data.reachable : null} label="Home" />
           <Dot ok={lab.data ? homelabIssues(lab.data).length === 0 : null} label="Homelab" />
         </button>
       </header>
-      {offline && <div role="alert" className="bg-red-900/60 px-4 py-2 text-center">Nexus server unreachable. Retrying...</div>}
+      {offline && <div role="alert" className="border-y-[3px] border-line bg-bad px-4 py-2 text-center font-bold text-white">Nexus server unreachable. Retrying...</div>}
       <div className="flex min-h-0 flex-1 portrait:flex-col-reverse">
         <nav className="flex gap-2 p-2 landscape:flex-col landscape:justify-center landscape:gap-1 landscape:overflow-y-auto portrait:justify-around" aria-label="Main">
           {NAV.map((n) => (

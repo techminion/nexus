@@ -73,7 +73,7 @@ function Progress({ p, at, onSeek }: { p: Playback; at: number; onSeek: (ms: num
         onPointerCancel={() => setDrag(null)}
         onLostPointerCapture={() => setDrag(null)}
       >
-        <div className="h-2 w-full overflow-hidden rounded-full bg-raised">
+        <div className="h-3 w-full overflow-hidden rounded-full border-2 border-line bg-surface">
           <div className="h-full bg-accent" style={{ width: `${p.duration_ms ? (cur / p.duration_ms) * 100 : 0}%` }} />
         </div>
       </div>
@@ -105,12 +105,12 @@ function NowPlaying({ big, stack }: { big?: boolean; stack?: boolean }) {
   const shuffleBtn = <button className={`btn ${p.shuffle ? "btn-accent" : ""}`} aria-label="Shuffle" aria-pressed={p.shuffle} onClick={() => run({ method: "PUT", path: "/api/spotify/shuffle", body: { state: !p.shuffle }, patch: { shuffle: !p.shuffle } })}><Icon d={I.shuffle} stroke /></button>;
   const repeatBtn = <button className={`btn ${p.repeat !== "off" ? "btn-accent" : ""}`} aria-label={`Repeat ${p.repeat}`} onClick={() => run({ method: "PUT", path: "/api/spotify/repeat", body: { state: next }, patch: { repeat: next } })}><Icon d={I.repeat} stroke />{p.repeat === "track" && "1"}</button>;
   const volume = p.volume !== null && <VolumeSlider volume={p.volume} onSet={(v) => run({ method: "PUT", path: "/api/spotify/volume", body: { percent: v }, patch: { volume: v } })} />;
-  const err = ctl.error && <p role="alert" className="text-sm text-red-400">{ctl.error}</p>;
+  const err = ctl.error && <p role="alert" className="text-sm text-bad">{ctl.error}</p>;
   if (stack)
     return (
       <section className="card flex min-h-0 flex-col justify-center gap-2 overflow-y-auto" aria-label="Now playing">
         <div className="flex min-w-0 items-center gap-3">
-          {p.art ? <img src={p.art} alt="" className="aspect-square w-[clamp(4.5rem,24vh,10rem)] shrink-0 rounded-xl object-cover" /> : <div className="aspect-square w-[clamp(4.5rem,24vh,10rem)] shrink-0 rounded-xl bg-raised" />}
+          {p.art ? <img src={p.art} alt="" className="aspect-square w-[clamp(4.5rem,24vh,10rem)] shrink-0 rounded-lg frame object-cover" /> : <div className="aspect-square w-[clamp(4.5rem,24vh,10rem)] shrink-0 rounded-lg frame bg-raised" />}
           <div className="min-w-0 flex-1">
             <p className="truncate text-xl font-bold">{p.track ?? "Unknown"}</p>
             <p className="truncate text-dim">{p.artists.join(", ")}</p>
@@ -126,7 +126,7 @@ function NowPlaying({ big, stack }: { big?: boolean; stack?: boolean }) {
     );
   return (
     <section className="card flex h-full min-h-0 gap-4" aria-label="Now playing">
-      {p.art ? <img src={p.art} alt="" className="aspect-square h-auto w-[clamp(6rem,min(30vh,35vw),22rem)] shrink-0 self-center rounded-2xl object-cover" /> : <div className="aspect-square w-[clamp(6rem,min(30vh,35vw),22rem)] shrink-0 self-center rounded-2xl bg-raised" />}
+      {p.art ? <img src={p.art} alt="" className="aspect-square h-auto w-[clamp(6rem,min(30vh,35vw),22rem)] shrink-0 self-center rounded-lg frame object-cover shadow-[6px_6px_0_var(--color-line)]" /> : <div className="aspect-square w-[clamp(6rem,min(30vh,35vw),22rem)] shrink-0 self-center rounded-2xl bg-raised" />}
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
         <div className="min-w-0">
           <p className={`truncate font-bold ${big ? "text-3xl" : "text-2xl"}`}>{p.track ?? "Unknown"}</p>
@@ -188,7 +188,7 @@ function Shortcuts({ go }: { go: (p: string) => void }) {
           ),
         )}
       </div>
-      {msg && <p role="alert" className="mt-1 text-sm text-red-400">{msg}</p>}
+      {msg && <p role="alert" className="mt-1 text-sm text-bad">{msg}</p>}
     </section>
   );
 }
@@ -209,7 +209,7 @@ function ClockCalendar() {
       <div className="grid grid-cols-7 gap-1 text-center text-sm tabular-nums" role="grid" aria-label={now.toLocaleDateString([], { month: "long", year: "numeric" })}>
         {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => <span key={d} className="text-dim">{d}</span>)}
         {cells.map((d, i) => (
-          <span key={i} aria-current={d === today ? "date" : undefined} className={`rounded-md py-0.5 ${d === today ? "bg-accent font-bold text-black" : ""}`}>{d ?? ""}</span>
+          <span key={i} aria-current={d === today ? "date" : undefined} className={`rounded-md py-0.5 ${d === today ? "border-2 border-line bg-accent font-black text-black" : ""}`}>{d ?? ""}</span>
         ))}
       </div>
     </section>
@@ -249,7 +249,7 @@ export function Timers() {
   return (
     <section className="card flex h-full flex-col justify-center gap-6" aria-label="Timer and stopwatch">
       <div className="flex flex-col items-center gap-4">
-        <span className={`text-[min(20vw,30vh)] font-light leading-none tabular-nums ${done ? "text-accent" : ""}`}>{mmss(value)}</span>
+        <span className={`text-[min(20vw,30vh)] font-light leading-none tabular-nums ${done ? "text-ok" : ""}`}>{mmss(value)}</span>
         <div className="flex gap-1">
           <button className={`btn px-3 text-sm ${mode === "stopwatch" ? "btn-accent" : ""}`} onClick={() => set("stopwatch")}>Stopwatch</button>
           <button className={`btn px-3 text-sm ${mode === "timer" ? "btn-accent" : ""}`} onClick={() => set("timer")}>Timer</button>
@@ -268,7 +268,7 @@ export function Dashboard({ go }: { go: (p: string) => void }) {
   return (
     <div className="grid h-full gap-2 landscape:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] portrait:grid-cols-[minmax(0,1fr)] portrait:grid-rows-[auto_auto_auto]">
       <NowPlaying />
-      <div className="flex min-h-0 flex-col gap-2 overflow-y-auto">
+      <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-2 pb-2">
         <Shortcuts go={go} />
         <ClockCalendar />
       </div>
@@ -277,9 +277,9 @@ export function Dashboard({ go }: { go: (p: string) => void }) {
 }
 
 const reconnectBanner = (s: SpotifyState | undefined) =>
-  s?.connected && !s.scopesOk ? <p role="status" className="card border border-accent text-accent">Reconnect Spotify for new features. <a className="underline" href="/api/spotify/login">Reconnect</a></p> : null;
+  s?.connected && !s.scopesOk ? <p role="status" className="card bg-raised font-bold">Reconnect Spotify for new features. <a className="underline" href="/api/spotify/login">Reconnect</a></p> : null;
 
-const Art = ({ src }: { src: string | null }) => (src ? <img src={src} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" /> : <div className="h-12 w-12 shrink-0 rounded-lg bg-raised" />);
+const Art = ({ src }: { src: string | null }) => (src ? <img src={src} alt="" className="h-12 w-12 shrink-0 rounded-md border-2 border-line object-cover" /> : <div className="h-12 w-12 shrink-0 rounded-md border-2 border-line bg-raised" />);
 
 function useAddQueue() {
   return useMutation({ mutationFn: (uri: string) => api("POST", "/api/spotify/queue", { uri }) });
@@ -352,10 +352,10 @@ function LibraryPanel({ tabs }: { tabs: Tab[] }) {
       <div className="flex shrink-0 gap-2" role="tablist">
         {tabs.map((t) => <button key={t} role="tab" className={`btn flex-1 px-2 text-sm ${tab === t ? "btn-accent" : ""}`} aria-selected={tab === t} onClick={() => setTab(t)}>{TAB_LABEL[t]}</button>)}
       </div>
-      <div className="flex min-h-0 flex-col gap-2 overflow-y-auto">
+      <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-2 pb-2">
       {tab === "queue" && <UpNext bare />}
       {tab === "speakers" && <SpotifyDevices />}
-      {msg && <p role="status" className="text-sm text-accent">{msg}</p>}
+      {msg && <p role="status" className="text-sm text-ok">{msg}</p>}
       {err && <Notice>{err.message}</Notice>}
       {tab === "playlists" && pl.data?.playlists.length === 0 && <Notice>No playlists.</Notice>}
       {tab === "playlists" && pl.data?.playlists.map((p) => (
@@ -400,12 +400,12 @@ function SpotifyDevices() {
     <div className="flex flex-col gap-2">
       {q.data.devices.length === 0 && <Notice>No Spotify Connect devices found. Open Spotify on a device.</Notice>}
       {q.data.devices.map((d) => (
-        <button key={d.id} className={`btn justify-between ${d.active ? "border-2 border-accent" : ""}`} onClick={() => t.mutate(d.id)}>
+        <button key={d.id} className={`btn justify-between ${d.active ? "btn-accent" : ""}`} onClick={() => t.mutate(d.id)}>
           <span className="truncate">{d.name} <span className="text-dim">({d.type})</span></span>
-          {d.active && <span className="text-accent">Active</span>}
+          {d.active && <span className="rounded border-2 border-line bg-surface px-1.5 text-xs font-black">ACTIVE</span>}
         </button>
       ))}
-      {t.isError && <p role="alert" className="text-red-400">{t.error.message}</p>}
+      {t.isError && <p role="alert" className="text-bad">{t.error.message}</p>}
     </div>
   );
 }
@@ -432,7 +432,7 @@ function AlexaCard() {
         : !s.configured ? <p role="status" className="text-dim">Home Assistant is not configured. Set HA_URL, HA_TOKEN, HA_SENSORS and HA_ANNOUNCE_ENTITY on the server.</p>
         : (
           <>
-            <p role="status" className={s.reachable ? "text-accent" : "text-amber-400"}>{s.reachable ? "Home Assistant connected" : `Unavailable: ${s.error}`}</p>
+            <p role="status" className={s.reachable ? "text-ok" : "text-warn"}>{s.reachable ? "Home Assistant connected" : `Unavailable: ${s.error}`}</p>
             {s.sensors.map((x) => (
               <div key={x.id} className="flex justify-between gap-2"><span className="truncate text-dim">{x.name}</span><span className="tabular-nums">{x.state}{x.unit ? ` ${x.unit}` : ""}</span></div>
             ))}
@@ -440,8 +440,8 @@ function AlexaCard() {
               <input className="input flex-1" aria-label="Announcement" placeholder="Announce on Echo..." maxLength={300} value={msg} onChange={(e) => setMsg(e.target.value)} />
               <button className="btn btn-accent" type="submit" disabled={send.isPending || !msg.trim()}>{send.isPending ? "Sending..." : "Send"}</button>
             </form>
-            {send.isSuccess && <p role="status" className="text-accent">Announcement sent.</p>}
-            {send.isError && <p role="alert" className="text-red-400">{send.error.message}</p>}
+            {send.isSuccess && <p role="status" className="text-ok">Announcement sent.</p>}
+            {send.isError && <p role="alert" className="text-bad">{send.error.message}</p>}
           </>
         )}
     </section>
@@ -453,7 +453,7 @@ function Bar({ label, value, text }: { label: string; value: number | null; text
   return (
     <div className="flex flex-col gap-1">
       <div className="flex justify-between text-sm text-dim"><span>{label}</span><span className="tabular-nums">{value === null ? "n/a" : text}</span></div>
-      <div className="h-2 overflow-hidden rounded-full bg-raised"><div className="h-full bg-accent" style={{ width: `${value === null ? 0 : pct(value)}%` }} /></div>
+      <div className="h-3 overflow-hidden rounded-full border-2 border-line bg-surface"><div className="h-full bg-accent" style={{ width: `${value === null ? 0 : pct(value)}%` }} /></div>
     </div>
   );
 }
@@ -466,7 +466,7 @@ export function Homelab() {
   const d = q.data;
   if (!d) return <Notice>Loading...</Notice>;
   const { pi } = d;
-  const temp = pi.tempC === null ? "" : pi.tempC >= 80 ? "text-red-400" : pi.tempC >= 70 ? "text-amber-400" : "";
+  const temp = pi.tempC === null ? "" : pi.tempC >= 80 ? "text-bad" : pi.tempC >= 70 ? "text-warn" : "";
   const issues = homelabIssues(d);
   const running = d.containers?.filter((c) => c.state === "running").length;
   const up = d.hosts.filter((h) => h.up).length;
@@ -474,7 +474,7 @@ export function Homelab() {
   const stat = (label: string, value: string, ok: boolean | null) => (
     <div className="flex flex-col">
       <span className="text-xs uppercase tracking-wide text-dim">{label}</span>
-      <span className={`text-xl font-semibold tabular-nums ${ok === false ? "text-red-400" : ""}`}>{value}</span>
+      <span className={`text-xl font-semibold tabular-nums ${ok === false ? "text-bad" : ""}`}>{value}</span>
     </div>
   );
   return (
@@ -486,7 +486,7 @@ export function Homelab() {
           {stat("Hosts", `${up}/${d.hosts.length} up`, d.hosts.length ? up === d.hosts.length : null)}
           {stat("Home Assistant", !ha?.configured ? "not set up" : ha.reachable ? `online${echoTemp ? ` · ${echoTemp.state}°C room` : ""}` : "offline", ha?.configured ? ha.reachable : null)}
         </div>
-        <p role="status" className={issues.length ? "text-red-400" : "text-dim"}>{issues.length ? issues.join(" · ") : "All systems normal."}</p>
+        <p role="status" className={issues.length ? "text-bad" : "text-dim"}>{issues.length ? issues.join(" · ") : "All systems normal."}</p>
       </section>
       <section className="card flex flex-col gap-3" aria-label="Raspberry Pi">
         <h2 className="text-lg font-semibold">Raspberry Pi</h2>
@@ -504,7 +504,7 @@ export function Homelab() {
           : d.containers.length === 0 ? <p className="text-dim">No containers.</p>
           : d.containers.map((c) => (
             <div key={c.name} className="flex items-center gap-2">
-              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${c.state === "running" ? "bg-accent" : "bg-red-500"}`} />
+              <span className={`h-2.5 w-2.5 shrink-0 rounded-full border-2 border-line ${c.state === "running" ? "bg-accent" : "bg-bad"}`} />
               <span className="truncate">{c.name}</span>
               <span className="ml-auto truncate text-sm text-dim">{c.status}</span>
             </div>
@@ -515,7 +515,7 @@ export function Homelab() {
         {d.hosts.length === 0 && <p className="text-dim">No hosts configured (NEXUS_HOSTS).</p>}
         {d.hosts.map((h) => (
           <div key={h.name} className="flex items-center gap-2">
-            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${h.up ? "bg-accent" : "bg-red-500"}`} />
+            <span className={`h-2.5 w-2.5 shrink-0 rounded-full border-2 border-line ${h.up ? "bg-accent" : "bg-bad"}`} />
             <span className="truncate">{h.name} <span className="text-sm text-dim">{h.target}</span></span>
             <span className="ml-auto text-sm tabular-nums text-dim">{h.up ? `${h.latencyMs} ms` : "down"}</span>
           </div>
@@ -550,7 +550,7 @@ function ActionEditor({ a, set, scene }: { a: Action; set: (a: Action) => void; 
       {a.type === "spotify-play" && <input className="input" aria-label="Spotify URI" placeholder="spotify:playlist:..." value={a.uri} onChange={(e) => set({ ...a, uri: e.target.value.trim() })} />}
       {a.type === "announce" && <input className="input" aria-label="Announcement message" placeholder="Message" maxLength={300} value={a.message} onChange={(e) => set({ ...a, message: e.target.value })} />}
       {a.type === "scene" && (
-        <div className="flex flex-col gap-2 border-l-2 border-line pl-3">
+        <div className="flex flex-col gap-2 border-l-[3px] border-line pl-3">
           {a.steps.map((s, i) => (
             <div key={i} className="flex items-start gap-2">
               <div className="flex-1"><ActionEditor a={s} scene={false} set={(n) => set({ ...a, steps: a.steps.map((x, j) => (j === i ? n : x)) })} /></div>
@@ -575,14 +575,14 @@ function SettingsForm({ saved }: { saved: Settings }) {
     <section className="card flex flex-col gap-3">
       <h2 className="text-lg font-semibold">Shortcuts</h2>
       {sc.map((s, i) => (
-        <div key={i} className="flex flex-col gap-2 rounded-2xl bg-bg p-3">
+        <div key={i} className="flex flex-col gap-2 rounded-lg border-[3px] border-line bg-bg p-3">
           <input className="input" aria-label={`Shortcut ${i + 1} label`} maxLength={40} value={s.label} onChange={(e) => setSc(sc.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
           <ActionEditor a={s.action} scene set={(action) => setSc(sc.map((x, j) => (j === i ? { ...x, action } : x)))} />
         </div>
       ))}
       <button className="btn btn-accent" onClick={() => save.mutate({ ...saved, shortcuts: sc })}>{save.isPending ? "Saving..." : "Save shortcuts"}</button>
-      {save.isError && <p role="alert" className="text-red-400">{save.error.message}</p>}
-      {save.isSuccess && <p role="status" className="text-accent">Saved.</p>}
+      {save.isError && <p role="alert" className="text-bad">{save.error.message}</p>}
+      {save.isSuccess && <p role="status" className="text-ok">Saved.</p>}
     </section>
   );
 }
@@ -613,7 +613,7 @@ export function SettingsScreen({ onClock }: { onClock: () => void }) {
         <p role="status" className="text-dim">{status}</p>
         {reconnectBanner(s)}
         {s?.connected ? <button className="btn" onClick={() => disc.mutate()}>Disconnect</button> : <a className="btn btn-accent" href="/api/spotify/login">Connect Spotify</a>}
-        {new URLSearchParams(location.search).get("spotify") === "failed" && <p role="alert" className="text-red-400">Spotify authorization failed.</p>}
+        {new URLSearchParams(location.search).get("spotify") === "failed" && <p role="alert" className="text-bad">Spotify authorization failed.</p>}
       </section>
       {settings.data && <SettingsForm saved={settings.data} />}
       <button className="btn" onClick={logout}>Log out</button>
