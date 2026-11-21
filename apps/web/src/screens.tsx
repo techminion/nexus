@@ -395,7 +395,6 @@ function LibraryPanel({ tabs }: { tabs: Tab[] }) {
   );
 }
 
-export const Library = () => <div className="mx-auto flex h-full max-w-3xl flex-col"><LibraryPanel tabs={["playlists", "recent"]} /></div>;
 
 
 function SpotifyDevices() {
@@ -556,7 +555,7 @@ function ActionEditor({ a, set, scene }: { a: Action; set: (a: Action) => void; 
       {a.type === "url" && <input className="input" aria-label="URL" value={a.url} onChange={(e) => set({ ...a, url: e.target.value })} />}
       {a.type === "module" && (
         <select className="input" aria-label="Module" value={a.module} onChange={(e) => set({ ...a, module: e.target.value as Module })}>
-          {["dashboard", "music", "devices", "timer", "homelab", "library", "settings"].map((m) => <option key={m}>{m}</option>)}
+          {["dashboard", "music", "devices", "timer", "homelab", "studio", "settings"].map((m) => <option key={m}>{m}</option>)}
         </select>
       )}
       {a.type === "spotify-device" && <input className="input" aria-label="Device name" placeholder="Device name" value={a.deviceName} onChange={(e) => set({ ...a, deviceName: e.target.value })} />}

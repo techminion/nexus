@@ -1,0 +1,69 @@
+# Nexus Studio camera server (MediaMTX) on crashmetheus. Rendered by install.sh: __PUBLISH_PASS__ is replaced
+# with the secret in ~/.config/nexus-studio/publish.pass, so this template is safe to commit.
+logLevel: info
+
+authMethod: internal
+authInternalUsers:
+  # Cameras and phones publish with this account:
+  #   rtmp://crashmetheus.lan/<path>?user=studio&pass=<publish.pass>
+  - user: studio
+    pass: __PUBLISH_PASS__
+    ips: []
+    permissions:
+      - action: publish
+  # Local processes (the webcam's ffmpeg, OBS) need no credentials.
+  - user: any
+    ips: ["127.0.0.1", "::1"]
+    permissions:
+      - action: publish
+      - action: read
+      - action: api
+  # Nexus on the Pi: status checks, and viewing through its login-protected /studio/ proxy.
+  # Nobody else on the LAN can watch.
+  - user: any
+    ips: ["192.168.31.128"]
+    permissions:
+      - action: read
+      - action: api
+
+api: true
+apiAddress: :9997
+metrics: false
+pprof: false
+playback: false
+
+# Local-only RTSP, for OBS media sources (rtsp://127.0.0.1:8554/<path>).
+rtsp: true
+rtspAddress: 127.0.0.1:8554
+rtspTransports: [tcp]
+
+rtmp: true
+rtmpAddress: :1935
+
+hls: false
+srt: false
+moq: false
+
+webrtc: true
+webrtcAddress: :8889
+webrtcLocalUDPAddress: :8189
+webrtcAllowOrigins: ["https://epimetheus.lan", "https://192.168.31.128"]
+# No trusted proxies on purpose: access is granted by the Pi's own IP (its proxy has already checked the
+# Nexus login). Trusting X-Forwarded-For would judge the viewer's IP instead, which is not allowed.
+# Advertise only the LAN address (not Podman/Tailscale interfaces) to viewers.
+webrtcIPsFromInterfaces: false
+webrtcAdditionalHosts: ["192.168.31.247"]
+
+paths:
+  # Laptop webcam: only switched on while someone is watching.
+  webcam:
+    runOnDemand: >-
+      ffmpeg -hide_banner -loglevel error -f v4l2 -input_format mjpeg -video_size 1280x720 -framerate 30
+      -i /dev/video0 -c:v libx264 -preset ultrafast -tune zerolatency -pix_fmt yuv420p -g 60 -b:v 2500k
+      -f rtsp -rtsp_transport tcp rtsp://127.0.0.1:$RTSP_PORT/$MTX_PATH
+    runOnDemandRestart: true
+    runOnDemandCloseAfter: 15s
+  # Pushed by DJI Mimo (Live -> RTMP) and Larix Broadcaster on the phones.
+  dji: {}
+  phone1: {}
+  phone2: {}

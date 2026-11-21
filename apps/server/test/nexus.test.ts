@@ -1,4 +1,5 @@
 import { createHomeAssistant } from "../src/homeassistant.ts";
+import { parseCameras } from "../src/studio.ts";
 import { parseHosts } from "../src/homelab.ts";
 import { createSpotify } from "../src/spotify.ts";
 import { openKv } from "../src/db.ts";
@@ -337,6 +338,45 @@ test("spotify keeps last track when Spotify briefly reports no player; play targ
     const restarted = (await createSpotify(kv, { clientId: "c", publicUrl: "https://x" }).state()) as any;
     assert.equal(restarted.playback.track, "Song");
     assert.equal(restarted.playback.is_playing, false);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("studio: camera list parsing, auth-guarded status and proxy check, offline handling", async () => {
+  const warned: string[] = [];
+  assert.deepEqual(parseCameras("Webcam=webcam, DJI Action 2=dji,bad=../x,=nope,Phone=phone1", (m) => warned.push(m)), [
+    { name: "Webcam", path: "webcam" }, { name: "DJI Action 2", path: "dji" }, { name: "Phone", path: "phone1" },
+  ]);
+  assert.equal(warned.length, 2);
+
+  const app = await buildApp({ password: "pw", secret: "s".repeat(32), dataDir: ":memory:", studio: { api: "http://cams.test:9997", cameras: "Webcam=webcam,DJI=dji" } });
+  assert.equal((await app.inject("/api/studio")).statusCode, 401);
+  assert.equal((await app.inject("/api/studio/auth")).statusCode, 401);
+  const r = await app.inject({ method: "POST", url: "/api/login", payload: { password: "pw" } });
+  const cookies = { [r.cookies[0].name]: r.cookies[0].value };
+  assert.equal((await app.inject({ url: "/api/studio/auth", cookies })).statusCode, 204);
+
+  const realFetch = globalThis.fetch;
+  let up = true;
+  globalThis.fetch = async (u: any) => {
+    if (!up) throw new TypeError("fetch failed");
+    if (String(u).includes("/v3/config/paths/list")) return Response.json({ items: [{ name: "webcam", runOnDemand: "ffmpeg ..." }, { name: "dji", runOnDemand: "" }] });
+    return Response.json({ items: [{ name: "dji", ready: true, readers: [{}, {}] }, { name: "webcam", ready: false, readers: [] }] });
+  };
+  try {
+    const st = (await app.inject({ url: "/api/studio", cookies })).json();
+    assert.equal(st.reachable, true);
+    assert.deepEqual(st.cameras, [
+      { name: "Webcam", path: "webcam", live: false, onDemand: true, viewers: 0 },
+      { name: "DJI", path: "dji", live: true, onDemand: false, viewers: 2 },
+    ]);
+    up = false;
+    await new Promise((res) => setTimeout(res, 3100)); // past the 3 s cache
+    const down = (await app.inject({ url: "/api/studio", cookies })).json();
+    assert.equal(down.reachable, false);
+    assert.match(down.error, /crashmetheus/);
+    assert.deepEqual(down.cameras.map((c: { live: boolean }) => c.live), [false, false]);
   } finally {
     globalThis.fetch = realFetch;
   }

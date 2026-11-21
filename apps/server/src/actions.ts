@@ -1,4 +1,4 @@
-export const MODULES = ["dashboard", "music", "devices", "timer", "homelab", "library", "settings"] as const;
+export const MODULES = ["dashboard", "music", "devices", "timer", "homelab", "studio", "settings"] as const;
 export const TRACK_RE = /^spotify:track:[A-Za-z0-9]{22}$/;
 export const CONTEXT_RE = /^spotify:(playlist|album|artist|show):[A-Za-z0-9]{22}$/;
 export type Action =

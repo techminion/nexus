@@ -6,8 +6,22 @@
 192.168.31.128, epimetheus, epimetheus.lan {
 	# shortcut: Caddy internal CA (self-signed), clients see a cert warning until they trust it; switch to a real domain/Tailscale cert if that bothers.
 	tls internal
-	encode gzip
-	reverse_proxy nexus:3000
+
+	# Studio cameras: WebRTC signalling (WHEP) to MediaMTX on crashmetheus, only for logged-in Nexus sessions.
+	# The video itself flows directly between MediaMTX and the browser.
+	handle_path /studio/* {
+		forward_auth nexus:3000 {
+			uri /api/studio/auth
+		}
+		reverse_proxy 192.168.31.247:8889 {
+			header_down -WWW-Authenticate # never pop a browser login box for MediaMTX
+		}
+	}
+
+	handle {
+		encode gzip
+		reverse_proxy nexus:3000
+	}
 }
 
 # Home Assistant admin UI (Alexa Media Player login happens here, so HTTPS only).

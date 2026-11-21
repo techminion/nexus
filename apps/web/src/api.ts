@@ -18,7 +18,7 @@ export async function api<T = unknown>(method: string, path: string, body?: unkn
   return j as T;
 }
 
-export type Module = "dashboard" | "music" | "devices" | "timer" | "homelab" | "library" | "settings";
+export type Module = "dashboard" | "music" | "devices" | "timer" | "homelab" | "studio" | "settings";
 export type Action =
   | { type: "url"; url: string }
   | { type: "module"; module: Module }
@@ -74,6 +74,11 @@ export interface Homelab {
   hosts: { name: string; target: string; up: boolean; latencyMs: number | null }[];
 }
 export interface HaStatus { configured: boolean; reachable: boolean; error: string | null; sensors: { id: string; name: string; state: string; unit: string | null; condition?: string }[] }
+
+export interface StudioCamera { name: string; path: string; live: boolean; onDemand: boolean; viewers: number }
+export interface StudioStatus { configured: boolean; reachable: boolean; error: string | null; cameras: StudioCamera[] }
+export const useStudio = () =>
+  useQuery({ queryKey: ["studio"], queryFn: () => api<StudioStatus>("GET", "/api/studio"), refetchInterval: () => (document.hidden ? false : 5000) });
 
 // Shared query keys: the header and the pages poll the same cache; the fastest interval wins.
 export const useHomelab = (ms = 30_000) =>

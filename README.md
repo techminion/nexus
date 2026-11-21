@@ -16,6 +16,8 @@ Desk dashboard: Spotify remote, clock/timer, five shortcuts. React + Vite web ap
 | `HA_TOKEN` | for Alexa | HA long-lived access token (secret, never returned by the API). |
 | `HA_SENSORS` | no | Comma-separated allowlist of entity ids shown on Devices, e.g. `sensor.echo_dot_temperature,weather.home`. The dashboard shows the first `weather.*` entity and the first °C sensor as room temperature. |
 | `HA_ANNOUNCE_ENTITY` | for announce | notify entity, e.g. `notify.living_room_amey_s_echo_dot_announce` (Alexa Devices integration). |
+| `STUDIO_API` | for Studio | MediaMTX API origin on the camera host, e.g. `http://192.168.31.247:9997`. |
+| `STUDIO_CAMERAS` | for Studio | `Name=path` list, e.g. `Webcam=webcam,DJI Action 2=dji,Phone 1=phone1`. Unquoted (podman env-file). |
 | `PORT` | no | default 3000 |
 | `NEXUS_DATA_DIR` | no | SQLite location, default `./data` (`/data` in the image) |
 

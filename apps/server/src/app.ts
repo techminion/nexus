@@ -7,6 +7,7 @@ import { openKv } from "./db.ts";
 import { AppError, createSpotify } from "./spotify.ts";
 import { createHomelab, type HomelabCfg } from "./homelab.ts";
 import { createHomeAssistant, type HaCfg } from "./homeassistant.ts";
+import { createStudio, type StudioCfg } from "./studio.ts";
 import { CONTEXT_RE, DEFAULT_SETTINGS, TRACK_RE, validateSettings, type Action, type Settings } from "./actions.ts";
 
 export interface Config {
@@ -18,6 +19,7 @@ export interface Config {
   webDist?: string;
   homelab?: Omit<HomelabCfg, "dataDir">;
   ha?: HaCfg;
+  studio?: StudioCfg;
 }
 
 const sha = (s: string) => createHash("sha256").update(s).digest();
@@ -42,6 +44,7 @@ export async function buildApp(cfg: Config) {
   const warn = (m: string) => app.log.warn(m);
   const homelab = createHomelab({ dataDir: cfg.dataDir, ...cfg.homelab }, warn);
   const ha = createHomeAssistant(cfg.ha ?? {}, warn);
+  const studio = createStudio(cfg.studio ?? {}, warn);
   const settings = (): Settings => kv.get<Settings>("settings") ?? DEFAULT_SETTINGS;
 
   // Random session ids kept server-side so logout revokes them; sessions are tied to the current password.
@@ -130,6 +133,9 @@ export async function buildApp(cfg: Config) {
 
   app.get("/api/homelab", async () => homelab.get());
   app.get("/api/ha/status", async () => ha.status());
+  app.get("/api/studio", async () => studio.status());
+  // Caddy forward_auth target for the /studio/ camera proxy: the auth guard above has already run.
+  app.get("/api/studio/auth", async (_req, reply) => reply.code(204).send());
   app.post("/api/ha/announce", { schema: { body: { type: "object", required: ["message"], additionalProperties: false, properties: { message: { type: "string", minLength: 1, maxLength: 300 } } } } }, async (req) => (await ha.announce((req.body as { message: string }).message), { ok: true }));
 
   app.get("/api/spotify/login", async (_req, reply) => reply.redirect(spotify.login()));

@@ -1,0 +1,13 @@
+# systemd user unit on crashmetheus: ~/.config/systemd/user/mediamtx.service (installed by install.sh).
+# Runs natively (not in a container) so the webcam's ffmpeg can open /dev/video0 with the desktop user's access.
+[Unit]
+Description=Nexus Studio camera server (MediaMTX)
+After=network-online.target
+
+[Service]
+ExecStart=%h/.local/opt/mediamtx/mediamtx %h/.config/nexus-studio/mediamtx.yml
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

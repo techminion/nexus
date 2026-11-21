@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, homelabIssues, useHa, useHomelab, useSettings, useSpotify, type Module } from "./api";
-import { Dashboard, Devices, Homelab, Icon, Library, Music, SettingsScreen, Timers } from "./screens";
+import { Dashboard, Devices, Homelab, Icon, Music, SettingsScreen, Timers } from "./screens";
+import { Studio } from "./studio";
 
 const NAV: { id: Module; label: string; path: string; icon: string }[] = [
   { id: "dashboard", label: "Dashboard", path: "/", icon: "M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z" },
@@ -9,7 +10,7 @@ const NAV: { id: Module; label: string; path: string; icon: string }[] = [
   { id: "devices", label: "Devices", path: "/devices", icon: "M4 4h16v11H4zM8 20h8M12 15v5" },
   { id: "timer", label: "Timer", path: "/timer", icon: "M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM12 9v4l2 2M10 2h4" },
   { id: "homelab", label: "Homelab", path: "/homelab", icon: "M3 4h18v6H3zM3 14h18v6H3zM7 7h.01M7 17h.01" },
-  { id: "library", label: "Library", path: "/library", icon: "M4 19V5M9 19V5M14 19V5M19 19l-3-14" },
+  { id: "studio", label: "Studio", path: "/studio", icon: "M23 7l-7 5 7 5zM1 5h15v14H1z" },
   { id: "settings", label: "Settings", path: "/settings", icon: "M4 6h16M4 12h16M4 18h16M8 4v4M16 10v4M10 16v4" },
 ];
 const moduleOf = (p: string): Module => NAV.find((n) => n.path === p)?.id ?? "dashboard";
@@ -117,7 +118,7 @@ function Shell({ path, go }: { path: string; go: (p: string) => void }) {
           {/* Kept mounted so a running timer survives navigation. */}
           <div className={mod === "timer" ? "h-full" : "hidden"}><Timers /></div>
           {mod === "homelab" && <Homelab />}
-          {mod === "library" && <Library />}
+          {mod === "studio" && <Studio />}
           {mod === "settings" && <SettingsScreen onClock={() => setFull(true)} />}
         </main>
       </div>
