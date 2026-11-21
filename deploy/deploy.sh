@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Sync source to the Pi, build the image there (arm64) and (re)start the Quadlet units.
 set -euo pipefail
-HOST=${HOST:-akhaire@epimetheus}
+HOST=${HOST:?usage: HOST=<user>@<pi> deploy/deploy.sh}
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 rsync -az --delete --exclude node_modules --exclude dist --exclude data --exclude enclosure \
   --exclude .claude-flow --exclude .rtk "$ROOT/" "$HOST:~/nexus/"
