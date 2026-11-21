@@ -45,12 +45,12 @@ for dev in /dev/v4l/by-id/*-video-index0; do
 "
   echo "Webcam: $slug  <- $dev"
 done
-# Phones listed in $conf/phones ("pixel 192.168.31.180" per line) get an on-demand phone/<name> preview that
+# Phones listed in $conf/phones ("pixel pixel.lan" per line) get an on-demand phone/<name> preview that
 # mirrors the phone's screen over adb (see phone-preview.sh); the phone records full quality itself.
 install -D -m 755 "$here/phone-preview.sh" ~/.local/opt/nexus-studio/phone-preview.sh
 while read -r pname pip _; do
   [[ -z $pname || $pname == \#* ]] && continue
-  [[ $pname =~ ^[a-z0-9][a-z0-9_-]{0,63}$ && $pip =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || { echo "phones: ignoring '$pname $pip'" >&2; continue; }
+  [[ $pname =~ ^[a-z0-9][a-z0-9_-]{0,63}$ && $pip =~ ^[a-z0-9][a-z0-9.-]{0,252}$ ]] || { echo "phones: ignoring '$pname $pip'" >&2; continue; }
   webcams+="  phone/$pname:
     runOnDemand: $HOME/.local/opt/nexus-studio/phone-preview.sh $pip
     runOnDemandStartTimeout: 25s

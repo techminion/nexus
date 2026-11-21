@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # MediaMTX runOnDemand for a phone: mirrors its screen (the Camera app's viewfinder) at low resolution as a
 # Studio preview. The phone records full quality in its own Camera app; this never opens the camera.
-# Needs the phone paired once over adb wireless debugging. Usage: phone-preview.sh <phone-ip>
+# Needs the phone paired once over adb wireless debugging. Usage: phone-preview.sh <phone-host-or-ip>
 set -euo pipefail
-ip=$1
-[[ $ip =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || { echo "bad ip: $ip" >&2; exit 2; }
+ip=$(getent ahostsv4 "$1" | awk 'NR == 1 { print $1 }')
+[[ $ip =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || { echo "cannot resolve phone: $1" >&2; exit 2; }
 adb=~/.local/opt/platform-tools/adb
 ver=5.0.1
 jar=~/.local/opt/scrcpy/scrcpy-server-v$ver
