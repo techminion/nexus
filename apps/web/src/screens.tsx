@@ -436,7 +436,25 @@ function MacCard() {
   const q = useMac();
   const qc = useQueryClient();
   const [vol, setVol] = useState<number | null>(null);
-  const send = useMutation({ mutationFn: (v: [MacCommand, (string | number)?]) => macCommand(...v), onSettled: () => { setVol(null); qc.invalidateQueries({ queryKey: ["mac"] }); } });
+  const [volErr, setVolErr] = useState<string | null>(null);
+  const send = useMutation({ mutationFn: (v: [MacCommand, (string | number)?]) => macCommand(...v), onSettled: () => qc.invalidateQueries({ queryKey: ["mac"] }) });
+  // Volume changes go one at a time and the latest wins, so a quick second drag can't be overtaken by the first.
+  const volQ = useRef({ busy: false, next: null as number | null });
+  const setVolume = async (v: number) => {
+    const s = volQ.current;
+    s.next = v;
+    if (s.busy) return;
+    s.busy = true;
+    setVolErr(null);
+    while (s.next !== null) {
+      const n = s.next;
+      s.next = null;
+      try { await macCommand("volume", n); } catch (e) { setVolErr(e instanceof Error ? e.message : String(e)); }
+    }
+    s.busy = false;
+    await qc.invalidateQueries({ queryKey: ["mac"] });
+    if (volQ.current.next === null) setVol(null);
+  };
   const m = q.data;
   if (!m?.configured) return null;
   if (!m.reachable) return <section className="card" aria-label="Mac"><h2 className="font-bold">Mac</h2><p className="text-sm text-dim">Mac offline</p></section>;
@@ -456,7 +474,7 @@ function MacCard() {
       {m.volume !== null && (
         <div className="flex items-center gap-2">
           <button className="btn" aria-pressed={m.muted === true} onClick={() => go(m.muted ? "unmute" : "mute")}>{m.muted ? "Unmute" : "Mute"}</button>
-          <input type="range" className="flex-1" min={0} max={100} aria-label="Mac volume" value={vol ?? m.volume} onChange={(e) => setVol(+e.target.value)} onPointerUp={() => vol !== null && go("volume", vol)} onKeyUp={() => vol !== null && go("volume", vol)} />
+          <input type="range" className="flex-1" min={0} max={100} aria-label="Mac volume" value={vol ?? m.volume} onChange={(e) => setVol(+e.target.value)} onPointerUp={() => vol !== null && void setVolume(vol)} onKeyUp={() => vol !== null && void setVolume(vol)} />
           <span className="w-8 tabular-nums">{vol ?? m.volume}</span>
         </div>
       )}
@@ -466,7 +484,7 @@ function MacCard() {
           {m.shortcuts.map((x) => <button key={"s" + x} className="btn" onClick={() => go("shortcut", x)}>{x}</button>)}
         </div>
       )}
-      {send.isError && <p role="alert" className="text-sm text-bad">{send.error.message}</p>}
+      {(send.isError || volErr) && <p role="alert" className="text-sm text-bad">{volErr ?? send.error?.message}</p>}
     </section>
   );
 }

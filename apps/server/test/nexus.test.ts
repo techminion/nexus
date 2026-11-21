@@ -488,3 +488,23 @@ test("mac actions, status and route", async () => {
   assert.equal((await app.inject({ method: "POST", url: "/api/mac", headers: { cookie }, payload: { command: "reboot" } })).statusCode, 400);
   await app.close();
 });
+
+test("web build id header changes with the build", async () => {
+  const { mkdtempSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const id = async (html: string) => {
+    const dir = mkdtempSync(join(tmpdir(), "nexus-web-"));
+    writeFileSync(join(dir, "index.html"), html);
+    const app = await buildApp({ password: "pw", secret: "s".repeat(32), dataDir: ":memory:", webDist: dir });
+    try {
+      const [a, b] = [await app.inject({ url: "/api/session" }), await app.inject({ url: "/" })];
+      assert.equal(a.headers["x-nexus-build"], b.headers["x-nexus-build"]);
+      return a.headers["x-nexus-build"];
+    } finally { await app.close(); }
+  };
+  const one = await id('<script src="/assets/index-aaa.js"></script>');
+  assert.match(String(one), /^[0-9a-f]{12}$/);
+  assert.equal(await id('<script src="/assets/index-aaa.js"></script>'), one);
+  assert.notEqual(await id('<script src="/assets/index-bbb.js"></script>'), one);
+});

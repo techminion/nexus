@@ -6,6 +6,7 @@ export class ApiError extends Error {
   }
 }
 
+let build: string | null = null; // the server's web build when this page loaded
 export async function api<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
   let r: Response;
   try {
@@ -13,6 +14,9 @@ export async function api<T = unknown>(method: string, path: string, body?: unkn
   } catch {
     throw new ApiError(0, "network", "Nexus server unreachable.");
   }
+  const b = r.headers.get("x-nexus-build");
+  if (b && build && b !== build) location.reload(); // a deploy changed the app: load the new one
+  build ??= b;
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new ApiError(r.status, j?.error?.code ?? "error", j?.error?.message ?? `Request failed (${r.status})`);
   return j as T;

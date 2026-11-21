@@ -2,7 +2,8 @@ import Fastify from "fastify";
 import cookie from "@fastify/cookie";
 import fstatic from "@fastify/static";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { openKv } from "./db.ts";
 import { AppError, createSpotify } from "./spotify.ts";
 import { createHomelab, type HomelabCfg } from "./homelab.ts";
@@ -209,6 +210,9 @@ export async function buildApp(cfg: Config) {
   });
 
   if (cfg.webDist && existsSync(cfg.webDist)) {
+    // Build id from index.html (it names the hashed assets): open pages reload themselves when it changes after a deploy.
+    const build = createHash("sha256").update(readFileSync(join(cfg.webDist, "index.html"))).digest("hex").slice(0, 12);
+    app.addHook("onSend", async (_req, reply) => { reply.header("x-nexus-build", build); });
     await app.register(fstatic, { root: cfg.webDist });
     app.setNotFoundHandler((req, reply) =>
       req.url.startsWith("/api/") || req.method !== "GET" ? reply.code(404).send({ error: { code: "not_found", message: "Not found." } }) : reply.sendFile("index.html"));
