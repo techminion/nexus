@@ -7,3 +7,4 @@ data/
 .rtk/
 *.tsbuildinfo
 __pycache__/
+CLAUDE.md

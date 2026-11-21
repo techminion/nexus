@@ -204,3 +204,7 @@ Nexus change. Re-running `deploy/studio/install.sh` restarts MediaMTX, which bri
 Not affiliated with or endorsed by Spotify, Amazon, DJI, Insta360, Apple, OBS or Home Assistant. The DJI and Insta360
 Bluetooth protocols were reverse-engineered from public projects and observation; use them at your own risk.
 
+
+## License
+
+MIT, see [LICENSE](LICENSE).
