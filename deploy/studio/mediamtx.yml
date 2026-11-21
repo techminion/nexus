@@ -59,4 +59,4 @@ paths:
 __WEBCAMS__
   # Anything else that publishes (phones via Larix, DJI Mimo "Live -> RTMP") under any simple name.
   # Nexus discovers these automatically while they are live.
-  "~^[a-z0-9][a-z0-9_-]{0,63}$": {}
+  "~^[a-z0-9][a-z0-9_-]{0,63}(/[a-z0-9][a-z0-9_-]{0,63})?$": {}

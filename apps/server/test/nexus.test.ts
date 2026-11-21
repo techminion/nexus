@@ -351,6 +351,8 @@ test("studio: camera list parsing, auth-guarded status and proxy check, offline 
   assert.equal(warned.length, 2);
   assert.equal(cameraName("c270-hd-webcam"), "C270 HD Webcam");
   assert.equal(cameraName("kitchen_phone"), "Kitchen Phone");
+  assert.equal(cameraName("phone/redmi"), "Redmi");
+  assert.deepEqual(parseCameras("Redmi=phone/redmi,x=a/b/c"), [{ name: "Redmi", path: "phone/redmi" }]);
 
   const app = await buildApp({ password: "pw", secret: "s".repeat(32), dataDir: ":memory:", studio: { api: "http://cams.test:9997", cameras: "DJI Action 2=dji" } });
   assert.equal((await app.inject("/api/studio")).statusCode, 401);

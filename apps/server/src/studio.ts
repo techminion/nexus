@@ -6,7 +6,8 @@ import { AppError } from "./spotify.ts";
 // STUDIO_CAMERAS is optional: "Name=path" entries give nicer names and keep those tiles shown while offline.
 export interface StudioCfg { api?: string; cameras?: string }
 export interface Camera { name: string; path: string }
-const PATH = /^[a-z0-9_-]{1,64}$/;
+// One or two segments: RTMP apps such as Larix and DJI Mimo require rtmp://host/app/stream.
+const PATH = /^[a-z0-9_-]{1,64}(\/[a-z0-9_-]{1,64})?$/;
 
 /** "Webcam=webcam,DJI Action 2=dji" -> [{ name: "Webcam", path: "webcam" }, ...] */
 export function parseCameras(s: string | undefined, warn: (m: string) => void = () => {}): Camera[] {
@@ -18,9 +19,9 @@ export function parseCameras(s: string | undefined, warn: (m: string) => void = 
   });
 }
 
-/** "c270-hd-webcam" -> "C270 HD Webcam", "dji" -> "DJI". */
+/** "c270-hd-webcam" -> "C270 HD Webcam", "dji" -> "DJI", "phone/redmi" -> "Redmi". */
 export const cameraName = (path: string) =>
-  path.split(/[-_]+/).filter(Boolean).map((w) => (w.length <= 3 ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1))).join(" ");
+  path.slice(path.lastIndexOf("/") + 1).split(/[-_]+/).filter(Boolean).map((w) => (w.length <= 3 ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1))).join(" ");
 
 export function createStudio(cfg: StudioCfg, warn: (m: string) => void = () => {}) {
   const raw = cfg.api?.replace(/\/$/, "") ?? "";

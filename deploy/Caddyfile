@@ -10,7 +10,7 @@
 	# Studio cameras: WebRTC signalling (WHEP) to MediaMTX on crashmetheus, only for logged-in Nexus sessions.
 	# The video itself flows directly between MediaMTX and the browser.
 	@whep {
-		path_regexp ^/studio/[a-z0-9_-]+/whep$
+		path_regexp ^/studio/[a-z0-9_-]+(/[a-z0-9_-]+)?/whep$
 		method POST
 	}
 	handle @whep {
