@@ -9,13 +9,21 @@
 
 	# Studio cameras: WebRTC signalling (WHEP) to MediaMTX on crashmetheus, only for logged-in Nexus sessions.
 	# The video itself flows directly between MediaMTX and the browser.
-	handle_path /studio/* {
+	@whep {
+		path_regexp ^/studio/[a-z0-9_-]+/whep$
+		method POST
+	}
+	handle @whep {
+		uri strip_prefix /studio
 		forward_auth nexus:3000 {
 			uri /api/studio/auth
 		}
 		reverse_proxy 192.168.31.247:8889 {
 			header_down -WWW-Authenticate # never pop a browser login box for MediaMTX
 		}
+	}
+	handle /studio/* {
+		respond 404
 	}
 
 	handle {

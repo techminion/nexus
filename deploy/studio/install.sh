@@ -22,8 +22,14 @@ if [ ! -s "$conf/publish.pass" ]; then
   (umask 077; openssl rand -hex 12 > "$conf/publish.pass")
   echo "Created $conf/publish.pass (camera publish password)"
 fi
-pass=$(cat "$conf/publish.pass")
-(umask 077; sed "s/__PUBLISH_PASS__/$pass/" "$here/mediamtx.yml" > "$conf/mediamtx.yml")
+pass=$(<"$conf/publish.pass")
+[[ $pass =~ ^[0-9a-f]{24}$ ]] || { echo "$conf/publish.pass must hold 24 hex characters" >&2; exit 1; }
+# Builtins only (no sed/awk), so the password never appears in a process command line;
+# write a 0600 temp file and rename, so a failure never leaves a truncated config behind.
+tpl=$(<"$here/mediamtx.yml")
+out=$(mktemp "$conf/.mediamtx.yml.XXXXXX")
+printf '%s\n' "${tpl//__PUBLISH_PASS__/$pass}" > "$out"
+mv -f "$out" "$conf/mediamtx.yml"
 install -m 644 "$here/mediamtx.service" ~/.config/systemd/user/mediamtx.service
 systemctl --user daemon-reload
 systemctl --user enable mediamtx >/dev/null 2>&1

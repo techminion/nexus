@@ -31,7 +31,9 @@ export function createStudio(cfg: StudioCfg, warn: (m: string) => void = () => {
       throw new AppError(502, "network", "Cannot reach the camera server (is crashmetheus on?).");
     }
     if (!r.ok) throw new AppError(502, "studio", `Camera server returned ${r.status}.`);
-    return (await r.json()) as { items?: Record<string, unknown>[] };
+    const j = (await r.json().catch(() => null)) as { items?: unknown } | null;
+    if (!j || !Array.isArray(j.items)) throw new AppError(502, "studio", "Camera server returned an unexpected response.");
+    return j as { items: Record<string, unknown>[] };
   };
 
   async function poll() {

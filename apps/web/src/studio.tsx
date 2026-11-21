@@ -13,6 +13,7 @@ function useWhep(path: string, on: boolean) {
     if (!on) return setState("idle");
     let stopped = false;
     let timer: number | undefined;
+    const ac = new AbortController();
     const pc = new RTCPeerConnection();
     const stream = new MediaStream();
     pc.addTransceiver("video", { direction: "recvonly" });
@@ -26,8 +27,9 @@ function useWhep(path: string, on: boolean) {
       setState("error");
       timer = window.setTimeout(() => setRetry((n) => n + 1), 3000);
     };
+    const deadline = window.setTimeout(fail, 15_000); // never sit on "Connecting..." forever
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === "connected") setState("playing");
+      if (pc.connectionState === "connected") (clearTimeout(deadline), setState("playing"));
       else if (pc.connectionState === "failed" || pc.connectionState === "disconnected") fail();
     };
     setState("connecting");
@@ -38,14 +40,18 @@ function useWhep(path: string, on: boolean) {
         const t = setTimeout(done, 1500);
         pc.addEventListener("icegatheringstatechange", () => pc.iceGatheringState === "complete" && (clearTimeout(t), done()));
       });
-      const r = await fetch(`/studio/${path}/whep`, { method: "POST", headers: { "content-type": "application/sdp" }, body: pc.localDescription!.sdp });
+      if (stopped) return;
+      const r = await fetch(`/studio/${path}/whep`, { method: "POST", headers: { "content-type": "application/sdp" }, body: pc.localDescription!.sdp, signal: ac.signal });
       if (!r.ok) throw new Error(`WHEP ${r.status}`);
       if (!stopped) await pc.setRemoteDescription({ type: "answer", sdp: await r.text() });
     })().catch(fail);
     return () => {
       stopped = true;
       clearTimeout(timer);
+      clearTimeout(deadline);
+      ac.abort();
       pc.close();
+      if (ref.current) ref.current.srcObject = null;
     };
   }, [path, on, retry]);
   return { ref, state };
@@ -70,7 +76,8 @@ export function Studio() {
   const s = q.data;
   if (!s) return <section className="card text-dim">{q.isError ? `Studio unavailable: ${q.error.message}` : "Loading..."}</section>;
   if (!s.configured) return <section className="card text-dim">Studio is not set up. Set STUDIO_API and STUDIO_CAMERAS on the server.</section>;
-  const active = (c: StudioCamera) => s.reachable && (c.live || (c.onDemand && started.includes(c.path)));
+  // On-demand cameras (the webcam) play only after this viewer taps Start, even if someone else turned them on.
+  const active = (c: StudioCamera) => s.reachable && (c.onDemand ? started.includes(c.path) : c.live);
   const open = s.cameras.find((c) => c.path === full && active(c));
   return (
     <div className="flex flex-col gap-3 pr-2 pb-2">
