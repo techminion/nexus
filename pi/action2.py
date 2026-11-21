@@ -131,6 +131,8 @@ class Camera:
         self.rx.clear()
         self.waiters.clear()
         self.disconnected = event = asyncio.Event()
+        # A link left behind by a run that died mid-session makes every new connect time out: drop it first.
+        subprocess.run(["bluetoothctl", "disconnect", dev.address], capture_output=True, timeout=10)
         self.client = BleakClient(dev, disconnected_callback=lambda _c: event.set())
         await self.client.connect()
         # On the Pi the first few connection attempts often fail and are retried inside
