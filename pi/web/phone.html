@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phone camera</title>
+<style>
+  body { margin:0; background:#0e1013; color:#e8eaed; font:16px/1.45 system-ui, sans-serif; display:flex; flex-direction:column; min-height:100dvh; }
+  video { width:100%; flex:1; min-height:0; background:#000; object-fit:contain; }
+  .panel { padding:14px 16px calc(14px + env(safe-area-inset-bottom)); display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  button { font:inherit; color:#fff; background:#4c8dff; border:0; border-radius:9px; padding:12px 18px; }
+  button.plain { background:#252a32; }
+  #status { flex-basis:100%; color:#8b93a1; font-size:14px; }
+</style>
+</head>
+<body>
+<video id="v" autoplay playsinline muted></video>
+<div class="panel">
+  <button id="start">Start camera</button>
+  <button id="flip" class="plain" hidden>Flip camera</button>
+  <div id="status">Tap Start camera and allow camera access.</div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const say = t => $('status').textContent = t;
+let stream = null, ws = null, facing = 'environment', wake = null;
+const peers = {};
+
+async function openCamera() {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  stream = await navigator.mediaDevices.getUserMedia({
+    audio: false,
+    video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } } });
+  $('v').srcObject = stream;
+  const track = stream.getVideoTracks()[0];
+  for (const p of Object.values(peers)) p.getSenders().forEach(s => s.track && s.replaceTrack(track));
+}
+
+async function offerTo(id) {
+  if (peers[id]) peers[id].close();
+  const p = peers[id] = new RTCPeerConnection();
+  stream.getTracks().forEach(t => p.addTrack(t, stream));
+  p.onicecandidate = e => e.candidate && ws.send(JSON.stringify({ type:'candidate', to:id, candidate:e.candidate }));
+  p.onconnectionstatechange = () => count();
+  await p.setLocalDescription(await p.createOffer());
+  ws.send(JSON.stringify({ type:'offer', to:id, sdp:p.localDescription }));
+}
+
+function count() {
+  const n = Object.values(peers).filter(p => p.connectionState === 'connected').length;
+  say(n ? `Sending to ${n} dashboard${n > 1 ? 's' : ''}. Keep this page open.` : 'Camera on. Waiting for a dashboard to open…');
+}
+
+function connect() {
+  ws = new WebSocket('wss://' + location.host + '/ws?role=phone');
+  ws.onopen = count;
+  ws.onmessage = async ev => {
+    const m = JSON.parse(ev.data);
+    if (m.type === 'viewer') await offerTo(m.id);
+    else if (m.type === 'answer' && peers[m.id]) await peers[m.id].setRemoteDescription(m.sdp);
+    else if (m.type === 'candidate' && peers[m.id]) { try { await peers[m.id].addIceCandidate(m.candidate); } catch {} }
+    else if (m.type === 'bye' && peers[m.id]) { peers[m.id].close(); delete peers[m.id]; count(); }
+  };
+  ws.onclose = () => {
+    for (const id in peers) { peers[id].close(); delete peers[id]; }
+    say('Lost the dashboard server. Reconnecting…'); setTimeout(connect, 2000);
+  };
+}
+
+$('start').onclick = async () => {
+  try {
+    await openCamera();
+  } catch (e) { say('Could not open the camera: ' + e.message); return; }
+  $('start').hidden = true; $('flip').hidden = false;
+  try { wake = await navigator.wakeLock.request('screen'); } catch {}   // keep the screen on
+  connect();
+};
+$('flip').onclick = async () => {
+  facing = facing === 'environment' ? 'user' : 'environment';
+  try { await openCamera(); } catch (e) { say('Could not switch: ' + e.message); }
+};
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && stream) { try { wake = await navigator.wakeLock.request('screen'); } catch {} }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Camera dashboard</title>
+<style>
+  :root { --bg:#0e1013; --panel:#171a1f; --line:#2a2f37; --text:#e8eaed; --dim:#8b93a1; --ok:#3ecf8e; --warn:#f5b84b; --accent:#4c8dff; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display:flex; align-items:baseline; gap:12px; padding:18px 24px 6px; }
+  h1 { font-size:18px; margin:0; font-weight:600; }
+  header span { color:var(--dim); }
+  main { display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:16px; padding:12px 24px 24px; }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; }
+  .bar { display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--line); }
+  .bar h2 { font-size:14px; margin:0; font-weight:600; flex:1; }
+  .pill { font-size:12px; padding:2px 9px; border-radius:99px; background:#252a32; color:var(--dim); white-space:nowrap; }
+  .pill.live { background:rgba(62,207,142,.15); color:var(--ok); }
+  .pill.busy { background:rgba(245,184,75,.15); color:var(--warn); }
+  .stage { position:relative; aspect-ratio:16/9; background:#000; display:grid; place-items:center; }
+  .stage img, .stage video { width:100%; height:100%; object-fit:contain; display:block; }
+  .empty { position:absolute; inset:0; display:grid; place-items:center; text-align:center; color:var(--dim); padding:16px; }
+  .controls { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:10px 14px; }
+  button { font:inherit; color:var(--text); background:#252a32; border:1px solid var(--line); border-radius:7px; padding:6px 14px; cursor:pointer; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button:disabled { opacity:.45; cursor:default; }
+  pre { margin:0; padding:10px 14px; border-top:1px solid var(--line); color:var(--dim); font:12px/1.5 ui-monospace, Menlo, monospace; height:130px; overflow:auto; white-space:pre-wrap; }
+  .join { display:flex; gap:14px; align-items:center; padding:12px 14px; border-top:1px solid var(--line); }
+  .join .qr { background:#fff; border-radius:6px; line-height:0; flex:none; }
+  .join .qr svg { width:108px; height:108px; }
+  .join code { color:var(--text); word-break:break-all; }
+  .join p { margin:0 0 6px; color:var(--dim); }
+</style>
+</head>
+<body>
+<header><h1>Camera dashboard</h1><span id="host"></span></header>
+<main>
+  <section>
+    <div class="bar"><h2>DJI Action 2</h2><span class="pill" id="djiPill">idle</span></div>
+    <div class="stage">
+      <img id="djiImg" alt="" hidden>
+      <div class="empty" id="djiEmpty">Press Start. The camera must be switched on and near the Pi.</div>
+    </div>
+    <div class="controls">
+      <button class="primary" id="djiStart">Start</button>
+      <button id="djiStop" disabled>Stop</button>
+    </div>
+    <pre id="djiLog"></pre>
+  </section>
+
+  <section>
+    <div class="bar"><h2>Android phone</h2><span class="pill" id="phonePill">not connected</span></div>
+    <div class="stage">
+      <video id="phoneVideo" autoplay playsinline muted hidden></video>
+      <div class="empty" id="phoneEmpty">Open the phone page on the Android phone and tap Start camera.</div>
+    </div>
+    <div class="join">
+      <div class="qr" id="qr"></div>
+      <div>
+        <p>Scan with the phone, or open in Chrome:</p>
+        <code id="phoneUrl"></code>
+        <p style="margin-top:6px">The first visit shows a certificate warning. Choose Advanced, then Proceed.</p>
+      </div>
+    </div>
+  </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+$('host').textContent = location.host;
+
+// ---------- DJI ----------
+let djiShown = false;
+$('djiStart').onclick = () => fetch('/api/dji/start', {method:'POST'}).then(poll);
+$('djiStop').onclick = () => fetch('/api/dji/stop', {method:'POST'}).then(poll);
+
+async function poll() {
+  let s;
+  try { s = await (await fetch('/api/status')).json(); } catch { return; }
+  const d = s.dji;
+  const label = d.live ? 'live' : d.state;
+  $('djiPill').textContent = label;
+  $('djiPill').className = 'pill' + (d.live ? ' live' : d.state !== 'idle' ? ' busy' : '');
+  $('djiStart').disabled = d.state !== 'idle';
+  $('djiStop').disabled = d.state === 'idle' || d.state === 'stopping';
+  if (d.live && !djiShown) { $('djiImg').src = '/dji.mjpg?' + Date.now(); djiShown = true; }
+  if (!d.live && djiShown) { $('djiImg').removeAttribute('src'); djiShown = false; }
+  $('djiImg').hidden = !d.live; $('djiEmpty').hidden = d.live;
+  $('djiEmpty').textContent = d.state === 'idle' ? 'Press Start. The camera must be switched on and near the Pi.'
+    : d.state === 'stopping' ? 'Stopping…' : 'Connecting to the camera. This takes about 20 seconds…';
+  const log = $('djiLog'), atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 4;
+  log.textContent = d.log.join('\n'); if (atEnd) log.scrollTop = log.scrollHeight;
+  if (!$('phoneUrl').textContent) { $('phoneUrl').textContent = s.phone_url; $('qr').innerHTML = s.qr; }
+  if (!phoneLive) {
+    $('phonePill').textContent = s.phone.connected ? 'connecting' : 'not connected';
+    $('phonePill').className = 'pill' + (s.phone.connected ? ' busy' : '');
+  }
+}
+setInterval(poll, 1000); poll();
+
+// ---------- Phone (WebRTC, receive only) ----------
+let pc = null, ws = null, phoneLive = false;
+function setPhone(live) {
+  phoneLive = live;
+  $('phoneVideo').hidden = !live; $('phoneEmpty').hidden = live;
+  if (live) { $('phonePill').textContent = 'live'; $('phonePill').className = 'pill live'; }
+}
+function drop() { if (pc) { pc.close(); pc = null; } $('phoneVideo').srcObject = null; setPhone(false); }
+
+function connect() {
+  ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws?role=viewer');
+  ws.onmessage = async ev => {
+    const m = JSON.parse(ev.data);
+    if (m.type === 'offer') {
+      drop();
+      const p = pc = new RTCPeerConnection();
+      p.ontrack = e => { $('phoneVideo').srcObject = e.streams[0]; setPhone(true); };
+      p.onicecandidate = e => e.candidate && ws.send(JSON.stringify({type:'candidate', candidate:e.candidate}));
+      p.onconnectionstatechange = () => { if (p === pc && ['failed','closed','disconnected'].includes(p.connectionState)) drop(); };
+      await p.setRemoteDescription(m.sdp);
+      await p.setLocalDescription(await p.createAnswer());
+      ws.send(JSON.stringify({type:'answer', sdp:p.localDescription}));
+    } else if (m.type === 'candidate' && pc) {
+      try { await pc.addIceCandidate(m.candidate); } catch {}
+    } else if (m.type === 'phone-gone') drop();
+  };
+  ws.onclose = () => { drop(); setTimeout(connect, 2000); };
+}
+connect();
+</script>
+</body>
+</html>
