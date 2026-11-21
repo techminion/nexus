@@ -258,7 +258,10 @@
         <path d="M 620 190 L 636 190 L 636 510 L 622 510" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
         <!-- HA -> Echo -->
         <line x1="350" y1="300" x2="350" y2="478" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
-        <text x="356" y="450" fill="#94a3b8" font-size="7">Alexa Devices</text>
+        <text x="356" y="450" fill="#94a3b8" font-size="7">Alexa Devices · voice events</text>
+        <!-- Nexus -> Mac over a forced-command ssh key -->
+        <path d="M 470 190 L 455 190 L 455 432 L 115 432 L 115 478" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+        <text x="121" y="465" fill="#94a3b8" font-size="7">ssh · forced command</text>
         <!-- dji-preview.sh -> action2.py over ssh -->
         <line x1="730" y1="355" x2="622" y2="355" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
         <text x="676" y="348" fill="#94a3b8" font-size="7" text-anchor="middle">ssh</text>
@@ -354,6 +357,10 @@
         <text x="1055" y="340" fill="#94a3b8" font-size="9" text-anchor="middle">C270 · laptop camera</text>
 
         <!-- External services and devices -->
+        <rect x="30" y="480" width="170" height="60" rx="6" fill="#0f172a"/>
+        <rect x="30" y="480" width="170" height="60" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="115" y="504" fill="white" font-size="11" font-weight="600" text-anchor="middle">Mac</text>
+        <text x="115" y="520" fill="#94a3b8" font-size="8" text-anchor="middle">nexus-mac.sh · media · apps</text>
         <rect x="270" y="480" width="160" height="60" rx="6" fill="#0f172a"/>
         <rect x="270" y="480" width="160" height="60" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
         <text x="350" y="504" fill="white" font-size="11" font-weight="600" text-anchor="middle">Echo / Alexa</text>
@@ -439,7 +446,8 @@
           <li>• Spotify: playback, queue, playlists (PKCE, tokens kept in SQLite)</li>
           <li>• Home Assistant: Alexa announcements and room sensors</li>
           <li>• Homelab: container snapshot plus TCP checks of NEXUS_HOSTS</li>
-          <li>• Shortcuts chain actions across Spotify, HA, OBS and pages</li>
+          <li>• Mac: media, volume, display sleep, allowlisted apps/Shortcuts over ssh</li>
+          <li>• Shortcuts chain actions across Spotify, HA, OBS, the Mac and pages; "Alexa, &lt;name&gt;" runs one</li>
         </ul>
       </div>
     </div>

@@ -17,6 +17,7 @@ Interactive version: [docs/architecture.html](docs/architecture.html) (open it i
 - **Cameras:** USB webcams on crashmetheus, phones mirrored over adb (`phone-preview.sh`), anything that streams RTMP
   to `rtmp://crashmetheus/cam/<name>`, and the DJI Action 2, which the Pi starts over Bluetooth (`pi/action2.py`,
   driven by `dji-preview.sh`).
+- **Mac:** Nexus controls it over ssh with a key that can only run `deploy/mac/nexus-mac.sh` (see Mac companion).
 
 ## Environment
 
