@@ -11,12 +11,14 @@ const sha = (s: string) => createHash("sha256").update(s).digest("base64");
 export const obsAuth = (password: string, salt: string, challenge: string) => sha(sha(password + salt) + challenge);
 
 export function createObs(cfg: ObsCfg, warn: (m: string) => void = () => {}) {
-  const url = cfg.url && /^wss?:\/\/[^/?#]+\/?$/.test(cfg.url) ? cfg.url : (cfg.url && warn("OBS_URL: must be ws://host:port, OBS disabled"), undefined);
+  const okUrl = (u: string) => { try { const x = new URL(u); return /^wss?:$/.test(x.protocol) && /^\/?$/.test(x.pathname) && !x.search && !x.hash; } catch { return false; } };
+  const url = cfg.url && okUrl(cfg.url) ? cfg.url : (cfg.url && warn("OBS_URL: must be ws://host:port, OBS disabled"), undefined);
 
   function call(reqs: Req[], timeoutMs = 4000): Promise<Record<string, unknown>[]> {
     if (!url) return Promise.reject(new AppError(503, "obs_not_configured", "OBS is not configured."));
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(url);
+      let ws: WebSocket;
+      try { ws = new WebSocket(url); } catch { return reject(new AppError(502, "obs_unreachable", "Cannot reach OBS.")); }
       const out: Record<string, unknown>[] = [];
       let settled = false;
       const done = (e?: Error) => { if (settled) return; settled = true; clearTimeout(t); ws.close(); e ? reject(e) : resolve(out); };
@@ -25,7 +27,8 @@ export function createObs(cfg: ObsCfg, warn: (m: string) => void = () => {}) {
       ws.onclose = (ev) => done(ev.code === 4009 ? new AppError(502, "obs_auth", "OBS rejected the password.") : new AppError(502, "obs_unreachable", "OBS closed the connection."));
       ws.onmessage = (ev) => {
         let m: { op: number; d: Record<string, any> };
-        try { m = JSON.parse(String(ev.data)); } catch { return done(new AppError(502, "obs_bad_reply", "Bad reply from OBS.")); }
+        try { m = JSON.parse(String(ev.data)); } catch { m = { op: -1, d: {} }; }
+        if (typeof m !== "object" || m === null || typeof m.d !== "object" || m.d === null) return done(new AppError(502, "obs_bad_reply", "Bad reply from OBS."));
         if (m.op === 0) {
           const a = m.d.authentication;
           if (a && !cfg.password) return done(new AppError(502, "obs_auth", "OBS needs a password (OBS_PASSWORD)."));
@@ -34,9 +37,11 @@ export function createObs(cfg: ObsCfg, warn: (m: string) => void = () => {}) {
           reqs.forEach(([requestType, requestData], i) => ws.send(JSON.stringify({ op: 6, d: { requestType, requestId: String(i), requestData } })));
           if (!reqs.length) done();
         } else if (m.op === 7) {
+          const i = Number(m.d.requestId);
+          if (!Number.isInteger(i) || i < 0 || i >= reqs.length || out[i] || m.d.requestType !== reqs[i][0]) return done(new AppError(502, "obs_bad_reply", "Bad reply from OBS."));
           const st = m.d.requestStatus;
           if (!st?.result) return done(new AppError(400, "obs_request_failed", `OBS: ${String(st?.comment ?? m.d.requestType).slice(0, 200)}`));
-          out[Number(m.d.requestId)] = m.d.responseData ?? {};
+          out[i] = typeof m.d.responseData === "object" && m.d.responseData !== null ? m.d.responseData : {};
           if (out.filter(Boolean).length === reqs.length) done();
         }
       };
@@ -44,10 +49,13 @@ export function createObs(cfg: ObsCfg, warn: (m: string) => void = () => {}) {
   }
 
   let cache: { at: number; value: unknown } | undefined;
+  let gen = 0; // bumped by every change; a status read that overlapped one is not cached
+  const change = async (reqs: Req[]) => { gen++; cache = undefined; try { await call(reqs); } finally { gen++; cache = undefined; } };
   return {
     async status() {
       if (!url) return { configured: false };
       if (cache && Date.now() - cache.at < 2000) return cache.value;
+      const g = gen;
       let value;
       try {
         const [scenes, rec, stream] = await call([["GetSceneList"], ["GetRecordStatus"], ["GetStreamStatus"]]);
@@ -64,10 +72,10 @@ export function createObs(cfg: ObsCfg, warn: (m: string) => void = () => {}) {
         if (!(e instanceof AppError)) throw e;
         value = { configured: true, reachable: false, error: e.message };
       }
-      cache = { at: Date.now(), value };
+      if (g === gen) cache = { at: Date.now(), value };
       return value;
     },
-    async setScene(scene: string) { cache = undefined; await call([["SetCurrentProgramScene", { sceneName: scene }]]); },
-    async record(on: boolean) { cache = undefined; await call([[on ? "StartRecord" : "StopRecord"]]); },
+    setScene: (scene: string) => change([["SetCurrentProgramScene", { sceneName: scene }]]),
+    record: (on: boolean) => change([[on ? "StartRecord" : "StopRecord"]]),
   };
 }

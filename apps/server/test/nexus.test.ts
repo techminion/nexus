@@ -406,3 +406,11 @@ test("obs actions and status", async () => {
   assert.equal(s.reachable, false);
   await assert.rejects(createObs({ url: "ws://127.0.0.1:9" }).record(true), /reach OBS|closed the connection/);
 });
+
+test("obs rejects malformed urls without throwing", async () => {
+  for (const url of ["ws://x:65536", "ws://x/path", "ws://x?q=1", "http://x:4455"]) {
+    const warned: string[] = [];
+    assert.deepEqual(await createObs({ url }, (m) => warned.push(m)).status(), { configured: false }, url);
+    assert.equal(warned.length, 1, url);
+  }
+});
