@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # MediaMTX runOnDemand for the DJI Action 2: asks the Pi (in Bluetooth range of the camera) to start the
-# camera's RTMP livestream into this path, as a Studio preview. The camera records full quality to its own card.
+# camera's RTMP livestream into this path, as a Studio preview. While streaming, the camera
+# records at the stream's 1080p30 (firmware limit): close the preview before recording in 4K.
 # The stream runs as a systemd user unit on the Pi; stopping it makes action2.py tell the camera to stop.
 # Usage: dji-preview.sh <ssh-target>   (needs ~/.config/nexus-studio/dji.url on the Pi, see install.sh)
 set -euo pipefail

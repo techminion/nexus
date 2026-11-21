@@ -12,8 +12,9 @@ Interactive version: [docs/architecture.html](docs/architecture.html) (open it i
 - **epimetheus (Pi)** runs Nexus, Caddy and Home Assistant as Podman Quadlet units, deployed with `deploy/deploy.sh`.
   Caddy terminates TLS and forwards camera signalling to MediaMTX only for logged-in sessions.
 - **crashmetheus** runs the Studio: MediaMTX (`deploy/studio/install.sh`) and OBS (`deploy/studio/obs-setup.sh`).
-  Camera paths start on demand when a tile opens and stop after the last viewer leaves. Previews only: phones and the
-  DJI Action 2 record full quality themselves.
+  Camera paths start on demand when a tile opens and stop after the last viewer leaves. Previews only: phones record full quality
+  themselves. The DJI Action 2 records at 1080p30 while it streams (camera limit), so frame with the preview, close
+  the tile, then record in 4K on the camera.
 - **Cameras:** USB webcams on crashmetheus, phones mirrored over adb (`phone-preview.sh`), anything that streams RTMP
   to `rtmp://crashmetheus/cam/<name>`, and the DJI Action 2, which the Pi starts over Bluetooth (`pi/action2.py`,
   driven by `dji-preview.sh`).
