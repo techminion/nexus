@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { fmtTime, useNow } from "./App";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, homelabIssues, useHa, useHomelab, useSettings, useSpotify, type Action, type Device, type Item, type Module, type PlaylistInfo, type RecentTrack, type Playback, type Settings, type Shortcut, type SpotifyState } from "./api";
+import { api, homelabIssues, useHa, useHomelab, useObs, useSettings, useSpotify, useStudio, type Homelab as HomelabData, type Action, type Device, type Item, type Module, type PlaylistInfo, type RecentTrack, type Playback, type Settings, type Shortcut, type SpotifyState } from "./api";
 
 export const Icon = ({ d, stroke }: { d: string; stroke?: boolean }) => (
   <svg viewBox="0 0 24 24" className="h-6 w-6" fill={stroke ? "none" : "currentColor"} stroke={stroke ? "currentColor" : "none"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -533,7 +533,34 @@ export function Homelab() {
           </div>
         ))}
       </section>
+      <StudioHost hosts={d.hosts} />
     </div>
+  );
+}
+
+/** The Studio machine's services: the host itself (NEXUS_HOSTS check), MediaMTX and OBS. */
+function StudioHost({ hosts }: { hosts: HomelabData["hosts"] }) {
+  const st = useStudio().data;
+  const obs = useObs().data;
+  if (!st?.configured && !obs?.configured) return null;
+  const ip = st?.publishUrl ? new URL(st.publishUrl.replace(/^rtmp:/, "http:")).hostname : null;
+  const host = ip ? hosts.find((h) => h.target.split(":")[0] === ip) : undefined;
+  const live = st?.cameras.filter((c) => c.live).length ?? 0;
+  const row = (name: string, ok: boolean | null, detail: string) => (
+    <div className="flex items-center gap-2">
+      <span className={`h-2.5 w-2.5 shrink-0 rounded-full border-2 border-line ${ok === null ? "bg-raised" : ok ? "bg-accent" : "bg-bad"}`} />
+      <span className="truncate">{name}</span>
+      <span className="ml-auto truncate text-sm text-dim">{detail}</span>
+    </div>
+  );
+  return (
+    <section className="card flex flex-col gap-2" aria-label="Studio host services">
+      <h2 className="text-lg font-semibold">{host?.name ?? "Studio host"}{ip && <span className="ml-2 text-sm font-normal text-dim">{ip}</span>}</h2>
+      {host && row("Host (ssh)", host.up, host.up ? `${host.latencyMs} ms` : "down")}
+      {st?.configured && row("MediaMTX (cameras)", st.reachable, st.reachable ? `${live}/${st.cameras.length} cameras live` : "down")}
+      {obs?.configured && row("OBS", obs.reachable,
+        !obs.reachable ? "closed" : [obs.scene && `scene ${obs.scene}`, obs.recording && `recording ${obs.recordTime ?? ""}`.trim(), obs.streaming && "streaming"].filter(Boolean).join(" · ") || "open")}
+    </section>
   );
 }
 
