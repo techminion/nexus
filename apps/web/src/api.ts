@@ -93,7 +93,8 @@ export type MacStatus =
   | { configured: true; reachable: false }
   | { configured: true; reachable: true; volume: number | null; muted: boolean | null; battery: number | null; ac: boolean; uptime: number | null; apps: string[]; shortcuts: string[] };
 export const useMac = () =>
-  useQuery({ queryKey: ["mac"], queryFn: () => api<MacStatus>("GET", "/api/mac"), refetchInterval: () => (document.hidden ? false : 5000) });
+  // No polling: read when the card opens and after each command (each read is an ssh login on the Mac).
+  useQuery({ queryKey: ["mac"], queryFn: () => api<MacStatus>("GET", "/api/mac"), refetchOnWindowFocus: false });
 export const macCommand = (command: MacCommand, arg?: string | number) => api("POST", "/api/mac", { command, ...(arg === undefined ? {} : { arg: String(arg) }) });
 export const useStudio = () =>
   useQuery({ queryKey: ["studio"], queryFn: () => api<StudioStatus>("GET", "/api/studio"), refetchInterval: () => (document.hidden ? false : 5000) });
