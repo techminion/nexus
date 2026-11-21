@@ -16,6 +16,8 @@ Volume=/etc/nexus/mac:/etc/nexus/mac:ro
 EnvironmentFile=/etc/nexus/nexus.env
 
 [Service]
+# The snapshot ordered before start cannot include this container: take another once it is up.
+ExecStartPost=-/usr/bin/systemctl start --no-block nexus-snapshot.service
 Restart=always
 RestartSec=5
 
