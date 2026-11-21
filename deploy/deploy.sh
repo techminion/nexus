@@ -24,7 +24,7 @@ ssh "$HOST" 'set -e
   sudo systemctl daemon-reload
   sudo systemctl start nexus-network  # start, not restart: the network must outlive the containers on it
   sudo systemctl enable --now nexus-snapshot.timer
-  sudo systemctl start nexus-snapshot.service
   sudo systemctl start homeassistant || echo "WARN: Home Assistant failed to start; continuing with Nexus rollout"
   sudo systemctl restart nexus caddy
+  sudo systemctl start nexus-snapshot.service  # after the restart: --rm containers vanish while restarting
   sudo podman image prune -f >/dev/null'
