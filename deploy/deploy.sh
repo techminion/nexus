@@ -7,7 +7,8 @@ rsync -az --delete --exclude node_modules --exclude dist --exclude data --exclud
   --exclude .claude-flow --exclude .rtk "$ROOT/" "$HOST:~/nexus/"
 ssh "$HOST" 'set -e
   cd ~/nexus
-  sudo podman build -t localhost/nexus:latest -f Containerfile .
+  # Router DNS (public fallback), not the Tailscale resolver: that one intermittently fails inside builds (EAI_AGAIN).
+  sudo podman build --dns=192.168.31.1 --dns=1.1.1.1 -t localhost/nexus:latest -f Containerfile .
   sudo install -d -m 700 /etc/nexus
   sudo install -m 644 deploy/Caddyfile /etc/nexus/Caddyfile
   sudo install -m 644 deploy/nexus.network deploy/nexus.container deploy/caddy.container deploy/homeassistant.container /etc/containers/systemd/
