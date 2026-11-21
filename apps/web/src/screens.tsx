@@ -82,7 +82,7 @@ function Progress({ p, at, onSeek }: { p: Playback; at: number; onSeek: (ms: num
   );
 }
 
-function NowPlaying({ big, stack }: { big?: boolean; stack?: boolean }) {
+function NowPlaying({ stack }: { stack?: boolean }) {
   const q = useSpotify();
   const ctl = useControl();
   const s = q.data;
@@ -125,24 +125,18 @@ function NowPlaying({ big, stack }: { big?: boolean; stack?: boolean }) {
       </section>
     );
   return (
-    <section className="card flex h-full min-h-0 gap-4" aria-label="Now playing">
-      {p.art ? <img src={p.art} alt="" className="aspect-square h-auto w-[clamp(6rem,min(30vh,35vw),22rem)] shrink-0 self-center rounded-lg frame object-cover shadow-[6px_6px_0_var(--color-line)]" /> : <div className="aspect-square w-[clamp(6rem,min(30vh,35vw),22rem)] shrink-0 self-center rounded-2xl bg-raised" />}
-      <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
-        <div className="min-w-0">
-          <p className={`truncate font-bold ${big ? "text-3xl" : "text-2xl"}`}>{p.track ?? "Unknown"}</p>
+    <section className="card flex min-w-0 flex-col gap-1" aria-label="Now playing">
+      <div className="flex min-w-0 items-center gap-3">
+        {p.art ? <img src={p.art} alt="" className="aspect-square w-[clamp(3.5rem,16vh,5.5rem)] shrink-0 rounded-lg frame object-cover" /> : <div className="aspect-square w-[clamp(3.5rem,16vh,5.5rem)] shrink-0 rounded-lg frame bg-raised" />}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-lg font-bold">{p.track ?? "Unknown"}</p>
           <p className="truncate text-dim">{p.artists.join(", ")}</p>
-          {big && <p className="truncate text-sm text-dim">{p.album}{p.device ? ` - ${p.device}` : ""}</p>}
+          {p.device && <p className="truncate text-sm text-dim">on {p.device}</p>}
         </div>
-        {progress}
-        <div className="flex items-center justify-center gap-3">
-          {big && shuffleBtn}
-          {likeBtn}
-          {transport}
-          {big && repeatBtn}
-        </div>
-        {big && volume}
-        {err}
       </div>
+      {progress}
+      <div className="flex items-center justify-center gap-2">{likeBtn}{transport}</div>
+      {err}
     </section>
   );
 }
@@ -193,25 +187,40 @@ function Shortcuts({ go }: { go: (p: string) => void }) {
   );
 }
 
-function ClockCalendar() {
+// "Amey's Echo Dot Temperature" -> "Temperature" when every sensor shares the device prefix.
+function shortNames(names: string[]) {
+  const words = names.map((n) => n.split(" "));
+  let k = 0;
+  while (names.length > 1 && words.every((w) => w.length > k + 1 && w[k] === words[0][k])) k++;
+  return words.map((w) => w.slice(k).join(" "));
+}
+
+// "25.0" -> "25", "107.46" -> "107.5"; non-numeric states ("off") pass through.
+const fmtReading = (v: string) => (v.trim() !== "" && Number.isFinite(Number(v)) ? Number(v).toLocaleString([], { maximumFractionDigits: 1 }) : v);
+
+function HomeReadings() {
+  const s = useHa().data;
+  if (!s?.reachable || !s.sensors.length) return null;
+  const labels = shortNames(s.sensors.map((x) => x.name));
+  return (
+    <div className="grid grid-cols-2 gap-3" aria-label="Home">
+      {s.sensors.map((x, i) => (
+        <div key={x.id} className="flex min-w-0 items-baseline justify-between gap-2 rounded-lg border-[3px] border-line bg-raised px-3 py-2 shadow-[4px_4px_0_var(--color-line)]">
+          <span className="truncate text-sm text-dim">{labels[i]}</span>
+          <span className="shrink-0 text-lg font-black tabular-nums"><span className="capitalize">{fmtReading(x.state)}</span>{x.unit ? ` ${x.unit}` : ""}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ClockHero() {
   const now = useNow();
   const h24 = useSettings().data?.clock24h ?? true;
-  const y = now.getFullYear(), m = now.getMonth(), today = now.getDate();
-  const lead = (new Date(y, m, 1).getDay() + 6) % 7; // Monday-first grid
-  const days = new Date(y, m + 1, 0).getDate();
-  const cells = [...Array(lead).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)];
   return (
-    <section className="card flex flex-col gap-2" aria-label="Clock and calendar">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-2">
-        <span className="text-4xl font-semibold tabular-nums">{fmtTime(now, h24)}</span>
-        <span className="text-dim">{now.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</span>
-      </div>
-      <div className="grid grid-cols-7 gap-1 text-center text-sm tabular-nums" role="grid" aria-label={now.toLocaleDateString([], { month: "long", year: "numeric" })}>
-        {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => <span key={d} className="text-dim">{d}</span>)}
-        {cells.map((d, i) => (
-          <span key={i} aria-current={d === today ? "date" : undefined} className={`rounded-md py-0.5 ${d === today ? "border-2 border-line bg-accent font-black text-black" : ""}`}>{d ?? ""}</span>
-        ))}
-      </div>
+    <section className="card flex min-h-0 flex-col justify-center" aria-label="Clock">
+      <span className="text-[clamp(4rem,min(15vw,34vh),12rem)] font-black leading-none tabular-nums">{fmtTime(now, h24)}</span>
+      <span className="mt-2 text-[clamp(1.1rem,5vh,2rem)] font-bold text-dim">{now.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</span>
     </section>
   );
 }
@@ -266,11 +275,12 @@ export function Timers() {
 
 export function Dashboard({ go }: { go: (p: string) => void }) {
   return (
-    <div className="grid h-full gap-2 landscape:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] portrait:grid-cols-[minmax(0,1fr)] portrait:grid-rows-[auto_auto_auto]">
-      <NowPlaying />
+    <div className="grid h-full gap-3 pr-2 pb-2 landscape:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] portrait:content-start">
+      <ClockHero />
       <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-2 pb-2">
+        <NowPlaying />
+        <HomeReadings />
         <Shortcuts go={go} />
-        <ClockCalendar />
       </div>
     </div>
   );
@@ -309,7 +319,7 @@ function UpNext({ bare }: { bare?: boolean }) {
 
 export const Music = () => (
   <div className="grid h-full min-h-0 gap-2 landscape:grid-cols-[minmax(19rem,2fr)_3fr] portrait:grid-rows-[auto_1fr]">
-    <NowPlaying big stack />
+    <NowPlaying stack />
     <section className="card flex min-h-0 flex-col" aria-label="Browse"><LibraryPanel tabs={["queue", "playlists", "recent", "speakers"]} /></section>
   </div>
 );
