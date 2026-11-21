@@ -21,6 +21,30 @@ out=$(mktemp "$ws/.config.json.XXXXXX")
 printf '{"alerts_enabled":false,"auth_required":true,"first_load":false,"server_enabled":true,"server_password":"%s","server_port":4455}\n' "$pass" > "$out"
 mv -f "$out" "$ws/config.json"
 
+# Recordings go to ~/nexus/videos. OBS rewrites its profile on exit, so only edit it while OBS is closed;
+# a fresh install has no profile until OBS's first start, so re-run this after that.
+rec=~/nexus/videos
+install -d "$rec"
+profiles=(~/.var/app/$app/config/obs-studio/basic/profiles/*/basic.ini)
+if [ ! -e "${profiles[0]}" ]; then
+  echo "Recording path: start OBS once, close it, then re-run this to set $rec"
+elif grep -qxF "RecFilePath=$rec" "${profiles[@]}" && grep -qxF "FilePath=$rec" "${profiles[@]}"; then
+  echo "Recording path: $rec"
+elif pgrep -x obs >/dev/null; then
+  echo "Recording path: close OBS, then re-run this to set $rec"
+else
+  python3 - "$rec" "${profiles[@]}" <<'PY'
+import configparser, sys
+rec, *files = sys.argv[1:]
+for f in files:
+    c = configparser.RawConfigParser(strict=False); c.optionxform = str; c.read(f, encoding="utf-8-sig")
+    for sec, key in (("SimpleOutput", "FilePath"), ("AdvOut", "RecFilePath")):
+        c.has_section(sec) or c.add_section(sec); c.set(sec, key, rec)
+    with open(f, "w", encoding="utf-8") as fh: c.write(fh, space_around_delimiters=False)
+PY
+  echo "Recording path: set to $rec"
+fi
+
 install -d ~/.config/autostart
 cat > ~/.config/autostart/nexus-obs.desktop <<EOF
 [Desktop Entry]
