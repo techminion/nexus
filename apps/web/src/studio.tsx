@@ -57,11 +57,11 @@ function useWhep(path: string, on: boolean) {
   return { ref, state };
 }
 
-function Player({ path, on, fit }: { path: string; on: boolean; fit: "cover" | "contain" }) {
+function Player({ path, on }: { path: string; on: boolean }) {
   const { ref, state } = useWhep(path, on);
   return (
     <div className="relative h-full w-full bg-black">
-      <video ref={ref} autoPlay muted playsInline className={`h-full w-full ${fit === "cover" ? "object-cover" : "object-contain"}`} />
+      <video ref={ref} autoPlay muted playsInline className="h-full w-full object-contain" />
       {state !== "playing" && <p className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white/80">{state === "error" ? "Reconnecting..." : "Connecting..."}</p>}
     </div>
   );
@@ -93,7 +93,7 @@ export function Studio() {
             <div className="aspect-video overflow-hidden rounded-lg border-[3px] border-line">
               {active(c) ? (
                 <button className="h-full w-full" aria-label={`Open ${c.name} full screen`} onClick={() => setFull(c.path)}>
-                  <Player path={c.path} on={full !== c.path} fit="cover" />
+                  <Player path={c.path} on={full !== c.path} />
                 </button>
               ) : (
                 <div className="flex h-full flex-col items-center justify-center gap-2 bg-raised p-3 text-center">
@@ -119,7 +119,7 @@ export function Studio() {
       </section>
       {open && (
         <button className="fixed inset-0 z-50 bg-black" aria-label={`Close ${open.name}`} onClick={() => setFull(null)}>
-          <Player path={open.path} on fit="contain" />
+          <Player path={open.path} on />
           <span className="absolute top-3 left-3 rounded border-2 border-white bg-black/60 px-2 font-bold text-white">{open.name}</span>
         </button>
       )}
