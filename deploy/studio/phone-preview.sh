@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # MediaMTX runOnDemand for a phone: mirrors its screen (the Camera app's viewfinder) at low resolution as a
 # Studio preview. The phone records full quality in its own Camera app; this never opens the camera.
-# Needs the phone paired once over adb wireless debugging. Usage: phone-preview.sh <phone-host-or-ip>
+# Needs the phone paired once over adb wireless debugging, and wireless debugging switched on before each preview;
+# it is switched off again when the preview stops. Usage: phone-preview.sh <phone-host-or-ip>
 set -euo pipefail
 ip=$(getent ahostsv4 "$1" | awk 'NR == 1 { print $1 }')
 [[ $ip =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || { echo "cannot resolve phone: $1" >&2; exit 2; }
@@ -22,7 +23,12 @@ fi
 scid=$(printf '%08x' $(( (RANDOM << 15 | RANDOM) & 0x7fffffff )))
 lport=$("$adb" -s "$dev" forward tcp:0 "localabstract:scrcpy_$scid")
 pids=()
-cleanup() { kill "${pids[@]}" 2>/dev/null || true; "$adb" -s "$dev" forward --remove "tcp:$lport" 2>/dev/null || true; }
+cleanup() {
+  kill "${pids[@]}" 2>/dev/null || true; "$adb" -s "$dev" forward --remove "tcp:$lport" 2>/dev/null || true
+  # Close the phone's debug port once nobody is previewing; the pairing survives, so re-enabling it is one tap.
+  timeout 5 "$adb" -s "$dev" shell settings put global adb_wifi_enabled 0 2>/dev/null || true
+  "$adb" disconnect "$dev" >/dev/null 2>&1 || true
+}
 trap cleanup EXIT
 trap 'exit 0' INT TERM
 
