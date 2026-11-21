@@ -75,7 +75,7 @@ export function Studio() {
   const [started, setStarted] = useState<string[]>([]); // on-demand cameras switched on by a tap
   const s = q.data;
   if (!s) return <section className="card text-dim">{q.isError ? `Studio unavailable: ${q.error.message}` : "Loading..."}</section>;
-  if (!s.configured) return <section className="card text-dim">Studio is not set up. Set STUDIO_API and STUDIO_CAMERAS on the server.</section>;
+  if (!s.configured) return <section className="card text-dim">Studio is not set up. Set STUDIO_API on the server.</section>;
   // On-demand cameras (the webcam) play only after this viewer taps Start, even if someone else turned them on.
   const active = (c: StudioCamera) => s.reachable && (c.onDemand ? started.includes(c.path) : c.live);
   const open = s.cameras.find((c) => c.path === full && active(c));
@@ -100,7 +100,7 @@ export function Studio() {
                   {c.onDemand && s.reachable ? (
                     <button className="btn btn-accent" onClick={() => setStarted([...started, c.path])}>Start camera</button>
                   ) : (
-                    <p className="text-sm text-dim">Not streaming. Publish to <span className="font-bold">{c.path}</span> on crashmetheus.</p>
+                    <p className="text-sm text-dim">Not streaming. Send RTMP to <span className="font-bold break-all">{s.publishUrl?.replace("<name>", c.path)}</span></p>
                   )}
                 </div>
               )}
@@ -111,6 +111,12 @@ export function Studio() {
           </section>
         ))}
       </div>
+      <section className="card flex flex-col gap-1 text-sm" aria-label="Add a camera">
+        <h2 className="text-base font-bold">Add a camera</h2>
+        <p><span className="font-bold">Phone or DJI:</span> stream RTMP (Larix Broadcaster, DJI Mimo → Live → RTMP) to <span className="font-bold break-all">{s.publishUrl}?user=studio&amp;pass=…</span> using any name. It appears here while streaming.</p>
+        <p><span className="font-bold">USB webcam:</span> plug it into crashmetheus and run <span className="font-bold">deploy/studio/install.sh</span>.</p>
+        <p className="text-dim">The password is in ~/.config/nexus-studio/publish.pass on crashmetheus. Optional names: STUDIO_CAMERAS on the Pi.</p>
+      </section>
       {open && (
         <button className="fixed inset-0 z-50 bg-black" aria-label={`Close ${open.name}`} onClick={() => setFull(null)}>
           <Player path={open.path} on fit="contain" />

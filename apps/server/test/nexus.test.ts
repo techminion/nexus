@@ -1,5 +1,5 @@
 import { createHomeAssistant } from "../src/homeassistant.ts";
-import { parseCameras } from "../src/studio.ts";
+import { cameraName, parseCameras } from "../src/studio.ts";
 import { parseHosts } from "../src/homelab.ts";
 import { createSpotify } from "../src/spotify.ts";
 import { openKv } from "../src/db.ts";
@@ -349,8 +349,10 @@ test("studio: camera list parsing, auth-guarded status and proxy check, offline 
     { name: "Webcam", path: "webcam" }, { name: "DJI Action 2", path: "dji" }, { name: "Phone", path: "phone1" },
   ]);
   assert.equal(warned.length, 2);
+  assert.equal(cameraName("c270-hd-webcam"), "C270 HD Webcam");
+  assert.equal(cameraName("kitchen_phone"), "Kitchen Phone");
 
-  const app = await buildApp({ password: "pw", secret: "s".repeat(32), dataDir: ":memory:", studio: { api: "http://cams.test:9997", cameras: "Webcam=webcam,DJI=dji" } });
+  const app = await buildApp({ password: "pw", secret: "s".repeat(32), dataDir: ":memory:", studio: { api: "http://cams.test:9997", cameras: "DJI Action 2=dji" } });
   assert.equal((await app.inject("/api/studio")).statusCode, 401);
   assert.equal((await app.inject("/api/studio/auth")).statusCode, 401);
   const r = await app.inject({ method: "POST", url: "/api/login", payload: { password: "pw" } });
@@ -361,22 +363,25 @@ test("studio: camera list parsing, auth-guarded status and proxy check, offline 
   let up = true;
   globalThis.fetch = async (u: any) => {
     if (!up) throw new TypeError("fetch failed");
-    if (String(u).includes("/v3/config/paths/list")) return Response.json({ items: [{ name: "webcam", runOnDemand: "ffmpeg ..." }, { name: "dji", runOnDemand: "" }] });
-    return Response.json({ items: [{ name: "dji", ready: true, readers: [{}, {}] }, { name: "webcam", ready: false, readers: [] }] });
+    if (String(u).includes("/v3/config/paths/list")) return Response.json({ items: [{ name: "webcam", runOnDemand: "ffmpeg ..." }, { name: "~^[a-z0-9]+$", runOnDemand: "" }, { name: "all_others" }] });
+    // a live phone appears without any config; a path that exists but isn't ready (no publisher) does not
+    return Response.json({ items: [{ name: "phone", ready: true, readers: [{}, {}] }, { name: "webcam", ready: false, readers: [] }, { name: "stale", ready: false }] });
   };
   try {
     const st = (await app.inject({ url: "/api/studio", cookies })).json();
     assert.equal(st.reachable, true);
+    assert.equal(st.publishUrl, "rtmp://cams.test/<name>");
     assert.deepEqual(st.cameras, [
-      { name: "Webcam", path: "webcam", live: false, onDemand: true, viewers: 0 },
-      { name: "DJI", path: "dji", live: true, onDemand: false, viewers: 2 },
+      { name: "DJI Action 2", path: "dji", live: false, onDemand: false, viewers: 0 }, // named in STUDIO_CAMERAS: shown while offline
+      { name: "Webcam", path: "webcam", live: false, onDemand: true, viewers: 0 }, // configured (USB webcam)
+      { name: "Phone", path: "phone", live: true, onDemand: false, viewers: 2 }, // discovered while live
     ]);
     up = false;
     await new Promise((res) => setTimeout(res, 3100)); // past the 3 s cache
     const down = (await app.inject({ url: "/api/studio", cookies })).json();
     assert.equal(down.reachable, false);
     assert.match(down.error, /crashmetheus/);
-    assert.deepEqual(down.cameras.map((c: { live: boolean }) => c.live), [false, false]);
+    assert.deepEqual(down.cameras.map((c: { path: string; live: boolean }) => [c.path, c.live]), [["dji", false]]);
   } finally {
     globalThis.fetch = realFetch;
   }
