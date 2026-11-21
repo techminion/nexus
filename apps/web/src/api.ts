@@ -73,7 +73,7 @@ export interface Homelab {
   error: string | null;
   hosts: { name: string; target: string; up: boolean; latencyMs: number | null }[];
 }
-export interface HaStatus { configured: boolean; reachable: boolean; error: string | null; sensors: { id: string; name: string; state: string; unit: string | null }[] }
+export interface HaStatus { configured: boolean; reachable: boolean; error: string | null; sensors: { id: string; name: string; state: string; unit: string | null; condition?: string }[] }
 
 // Shared query keys: the header and the pages poll the same cache; the fastest interval wins.
 export const useHomelab = (ms = 30_000) =>

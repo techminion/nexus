@@ -187,29 +187,32 @@ function Shortcuts({ go }: { go: (p: string) => void }) {
   );
 }
 
-// "Amey's Echo Dot Temperature" -> "Temperature" when every sensor shares the device prefix.
-function shortNames(names: string[]) {
-  const words = names.map((n) => n.split(" "));
-  let k = 0;
-  while (names.length > 1 && words.every((w) => w.length > k + 1 && w[k] === words[0][k])) k++;
-  return words.map((w) => w.slice(k).join(" "));
-}
-
 // "25.0" -> "25", "107.46" -> "107.5"; non-numeric states ("off") pass through.
 const fmtReading = (v: string) => (v.trim() !== "" && Number.isFinite(Number(v)) ? Number(v).toLocaleString([], { maximumFractionDigits: 1 }) : v);
+const CONDITION: Record<string, string> = { "clear-night": "Clear", partlycloudy: "Partly cloudy", "lightning-rainy": "Thunderstorm", lightning: "Lightning", pouring: "Heavy rain", "snowy-rainy": "Sleet", "windy-variant": "Windy", exceptional: "Extreme weather" };
+const fmtCondition = (c: string) => CONDITION[c] ?? c.charAt(0).toUpperCase() + c.slice(1);
 
+function Reading({ label, value, unit, note }: { label: string; value: string; unit: string | null; note?: string }) {
+  return (
+    <div className="min-w-0 rounded-lg border-[3px] border-line bg-raised px-3 py-2 shadow-[4px_4px_0_var(--color-line)]">
+      <p className="truncate text-sm text-dim">{label}</p>
+      <p className="truncate text-3xl font-black tabular-nums">{fmtReading(value)}{unit ? ` ${unit}` : ""}</p>
+      {note && <p className="truncate text-sm font-bold">{note}</p>}
+    </div>
+  );
+}
+
+// Outside weather and room temperature from Home Assistant (first weather.* and first °C sensor in HA_SENSORS).
 function HomeReadings() {
   const s = useHa().data;
-  if (!s?.reachable || !s.sensors.length) return null;
-  const labels = shortNames(s.sensors.map((x) => x.name));
+  if (!s?.reachable) return null;
+  const weather = s.sensors.find((x) => x.id.startsWith("weather."));
+  const room = s.sensors.find((x) => !x.id.startsWith("weather.") && x.unit === "°C");
+  if (!weather && !room) return null;
   return (
-    <div className="grid grid-cols-2 gap-3" aria-label="Home">
-      {s.sensors.map((x, i) => (
-        <div key={x.id} className="flex min-w-0 items-baseline justify-between gap-2 rounded-lg border-[3px] border-line bg-raised px-3 py-2 shadow-[4px_4px_0_var(--color-line)]">
-          <span className="truncate text-sm text-dim">{labels[i]}</span>
-          <span className="shrink-0 text-lg font-black tabular-nums"><span className="capitalize">{fmtReading(x.state)}</span>{x.unit ? ` ${x.unit}` : ""}</span>
-        </div>
-      ))}
+    <div className="grid grid-cols-2 gap-3" aria-label="Weather and room">
+      {weather && <Reading label="Outside" value={weather.state} unit={weather.unit} note={weather.condition && fmtCondition(weather.condition)} />}
+      {room && <Reading label="Room" value={room.state} unit={room.unit} />}
     </div>
   );
 }

@@ -52,8 +52,12 @@ export function createHomeAssistant(cfg: HaCfg, warn: (m: string) => void = () =
         const r = await call("GET", `/api/states/${id}`);
         if (r.status === 404) return null;
         if (!r.ok) throw new AppError(502, "ha", `Home Assistant returned ${r.status}.`);
-        const j = (await r.json()) as { state?: unknown; attributes?: { friendly_name?: unknown; unit_of_measurement?: unknown } };
-        return { id, name: String(j.attributes?.friendly_name ?? id), state: String(j.state ?? ""), unit: j.attributes?.unit_of_measurement ? String(j.attributes.unit_of_measurement) : null };
+        const j = (await r.json()) as { state?: unknown; attributes?: { friendly_name?: unknown; unit_of_measurement?: unknown; temperature?: unknown; temperature_unit?: unknown } };
+        const a = j.attributes ?? {};
+        const name = String(a.friendly_name ?? id);
+        // Weather entities keep the condition ("sunny") as state and the temperature as an attribute.
+        if (id.startsWith("weather.")) return { id, name, state: String(a.temperature ?? ""), unit: a.temperature_unit ? String(a.temperature_unit) : null, condition: String(j.state ?? "") };
+        return { id, name, state: String(j.state ?? ""), unit: a.unit_of_measurement ? String(a.unit_of_measurement) : null };
       }));
       value = { configured: true, reachable: true, error: null, sensors: got.filter((x) => x) };
     } catch (e) {

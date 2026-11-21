@@ -97,7 +97,7 @@ test("homelab and ha status: auth, graceful absence, no token leak; announce cal
   const app = await buildApp({
     password: "pw", secret: "s".repeat(32), dataDir: ":memory:",
     homelab: { containersFile: "/nonexistent/containers.json", hosts: "local=127.0.0.1:1" },
-    ha: { url: "http://ha.test:8123", token, sensors: "sensor.echo_temp", announceEntity: "notify.echo_announce" },
+    ha: { url: "http://ha.test:8123", token, sensors: "sensor.echo_temp,weather.home", announceEntity: "notify.echo_announce" },
   });
   assert.equal((await app.inject("/api/homelab")).statusCode, 401);
   assert.equal((await app.inject("/api/ha/status")).statusCode, 401);
@@ -114,13 +114,14 @@ test("homelab and ha status: auth, graceful absence, no token leak; announce cal
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (u: any, init: any) => {
     calls.push({ url: String(u), init });
+    if (String(u).includes("/api/states/weather.home")) return Response.json({ state: "sunny", attributes: { friendly_name: "Home", temperature: 32.5, temperature_unit: "°C" } });
     if (String(u).includes("/api/states/")) return Response.json({ state: "21.5", attributes: { friendly_name: "Echo temp", unit_of_measurement: "C" } });
     return Response.json([]);
   };
   try {
     const st = await app.inject({ url: "/api/ha/status", cookies });
     assert.equal(st.statusCode, 200);
-    assert.deepEqual(st.json().sensors, [{ id: "sensor.echo_temp", name: "Echo temp", state: "21.5", unit: "C" }]);
+    assert.deepEqual(st.json().sensors, [{ id: "sensor.echo_temp", name: "Echo temp", state: "21.5", unit: "C" }, { id: "weather.home", name: "Home", state: "32.5", unit: "°C", condition: "sunny" }]);
     assert.ok(!st.body.includes(token));
     calls.length = 0;
     const a = await app.inject({ method: "POST", url: "/api/ha/announce", cookies, payload: { message: "Dinner" } });

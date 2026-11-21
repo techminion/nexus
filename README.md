@@ -14,7 +14,7 @@ Desk dashboard: Spotify remote, clock/timer, five shortcuts. React + Vite web ap
 | `NEXUS_HOSTS` | no | Hosts to TCP-check: `name=host:port,...` e.g. `nas=192.168.31.10:22`. |
 | `HA_URL` | for Alexa | Home Assistant base URL, e.g. `http://homeassistant:8123`. |
 | `HA_TOKEN` | for Alexa | HA long-lived access token (secret, never returned by the API). |
-| `HA_SENSORS` | no | Comma-separated allowlist of entity ids shown on Devices, e.g. `sensor.echo_dot_temperature`. |
+| `HA_SENSORS` | no | Comma-separated allowlist of entity ids shown on Devices, e.g. `sensor.echo_dot_temperature,weather.home`. The dashboard shows the first `weather.*` entity and the first °C sensor as room temperature. |
 | `HA_ANNOUNCE_ENTITY` | for announce | notify entity, e.g. `notify.living_room_amey_s_echo_dot_announce` (Alexa Devices integration). |
 | `PORT` | no | default 3000 |
 | `NEXUS_DATA_DIR` | no | SQLite location, default `./data` (`/data` in the image) |
