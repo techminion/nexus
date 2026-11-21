@@ -8,6 +8,7 @@ import { AppError, createSpotify } from "./spotify.ts";
 import { createHomelab, type HomelabCfg } from "./homelab.ts";
 import { createHomeAssistant, type HaCfg } from "./homeassistant.ts";
 import { createStudio, type StudioCfg } from "./studio.ts";
+import { createObs, type ObsCfg } from "./obs.ts";
 import { CONTEXT_RE, DEFAULT_SETTINGS, TRACK_RE, validateSettings, type Action, type Settings } from "./actions.ts";
 
 export interface Config {
@@ -20,6 +21,7 @@ export interface Config {
   homelab?: Omit<HomelabCfg, "dataDir">;
   ha?: HaCfg;
   studio?: StudioCfg;
+  obs?: ObsCfg;
 }
 
 const sha = (s: string) => createHash("sha256").update(s).digest();
@@ -45,6 +47,7 @@ export async function buildApp(cfg: Config) {
   const homelab = createHomelab({ dataDir: cfg.dataDir, ...cfg.homelab }, warn);
   const ha = createHomeAssistant(cfg.ha ?? {}, warn);
   const studio = createStudio(cfg.studio ?? {}, warn);
+  const obs = createObs(cfg.obs ?? {}, warn);
   const settings = (): Settings => kv.get<Settings>("settings") ?? DEFAULT_SETTINGS;
 
   // Random session ids kept server-side so logout revokes them; sessions are tied to the current password.
@@ -117,9 +120,11 @@ export async function buildApp(cfg: Config) {
     const steps: Action[] = sc.action.type === "scene" ? sc.action.steps : [sc.action];
     const results = [];
     for (const s of steps) {
-      if (s.type !== "spotify-device" && s.type !== "announce" && s.type !== "spotify-play") { results.push({ type: s.type, status: "client" }); continue; }
+      if (s.type !== "spotify-device" && s.type !== "announce" && s.type !== "spotify-play" && s.type !== "obs-scene" && s.type !== "obs-record") { results.push({ type: s.type, status: "client" }); continue; }
       try {
         if (s.type === "announce") await ha.announce(s.message);
+        else if (s.type === "obs-scene") await obs.setScene(s.scene);
+        else if (s.type === "obs-record") await obs.record(s.on);
         else if (s.type === "spotify-play") await spotify.playItem(s.uri);
         else await spotify.transferByName(s.deviceName);
         results.push({ type: s.type, status: "ok" });
@@ -135,6 +140,9 @@ export async function buildApp(cfg: Config) {
   app.get("/api/ha/status", async () => ha.status());
   app.get("/api/studio", async () => studio.status());
   // Caddy forward_auth target for the /studio/ camera proxy: the auth guard above has already run.
+  app.get("/api/obs", async () => obs.status());
+  app.post("/api/obs/scene", { schema: { body: { type: "object", required: ["scene"], additionalProperties: false, properties: { scene: { type: "string", minLength: 1, maxLength: 100 } } } } }, async (req) => (await obs.setScene((req.body as { scene: string }).scene), { ok: true }));
+  app.post("/api/obs/record", { schema: { body: { type: "object", required: ["on"], additionalProperties: false, properties: { on: { type: "boolean" } } } } }, async (req) => (await obs.record((req.body as { on: boolean }).on), { ok: true }));
   app.get("/api/studio/auth", async (_req, reply) => reply.code(204).send());
   app.post("/api/ha/announce", { schema: { body: { type: "object", required: ["message"], additionalProperties: false, properties: { message: { type: "string", minLength: 1, maxLength: 300 } } } } }, async (req) => (await ha.announce((req.body as { message: string }).message), { ok: true }));
 

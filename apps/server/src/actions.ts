@@ -7,6 +7,8 @@ export type Action =
   | { type: "spotify-device"; deviceName: string }
   | { type: "announce"; message: string }
   | { type: "spotify-play"; uri: string; label?: string }
+  | { type: "obs-scene"; scene: string }
+  | { type: "obs-record"; on: boolean }
   | { type: "scene"; steps: Action[] }
   | { type: "none" };
 export interface Shortcut { label: string; action: Action }
@@ -52,6 +54,10 @@ export function validateAction(a: unknown, nested = false): string | null {
       return keys === "message,type" && str(a.message, 300) ? null : "invalid announce message";
     case "spotify-play":
       return (keys === "type,uri" || (keys === "label,type,uri" && str(a.label, 40))) && typeof a.uri === "string" && (TRACK_RE.test(a.uri) || CONTEXT_RE.test(a.uri)) ? null : "invalid spotify-play action";
+    case "obs-scene":
+      return keys === "scene,type" && str(a.scene, 100) ? null : "invalid OBS scene";
+    case "obs-record":
+      return keys === "on,type" && typeof a.on === "boolean" ? null : "invalid OBS record action";
     case "scene": {
       if (nested) return "scenes cannot be nested";
       if (keys !== "steps,type" || !Array.isArray(a.steps) || a.steps.length > 10) return "scene needs at most 10 steps";

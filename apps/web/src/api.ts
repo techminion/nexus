@@ -25,6 +25,8 @@ export type Action =
   | { type: "spotify-device"; deviceName: string }
   | { type: "announce"; message: string }
   | { type: "spotify-play"; uri: string; label?: string }
+  | { type: "obs-scene"; scene: string }
+  | { type: "obs-record"; on: boolean }
   | { type: "scene"; steps: Action[] }
   | { type: "none" };
 export interface Shortcut { label: string; action: Action }
@@ -77,6 +79,12 @@ export interface HaStatus { configured: boolean; reachable: boolean; error: stri
 
 export interface StudioCamera { name: string; path: string; live: boolean; onDemand: boolean; viewers: number }
 export interface StudioStatus { configured: boolean; reachable: boolean; error: string | null; publishUrl: string | null; cameras: StudioCamera[] }
+export type ObsStatus =
+  | { configured: false }
+  | { configured: true; reachable: false; error: string }
+  | { configured: true; reachable: true; scenes: string[]; scene: string | null; recording: boolean; recordTime: string | null; streaming: boolean };
+export const useObs = () =>
+  useQuery({ queryKey: ["obs"], queryFn: () => api<ObsStatus>("GET", "/api/obs"), refetchInterval: () => (document.hidden ? false : 3000) });
 export const useStudio = () =>
   useQuery({ queryKey: ["studio"], queryFn: () => api<StudioStatus>("GET", "/api/studio"), refetchInterval: () => (document.hidden ? false : 5000) });
 

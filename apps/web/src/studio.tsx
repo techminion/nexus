@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { useStudio, type StudioCamera } from "./api";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api, useObs, useStudio, type StudioCamera } from "./api";
 
 /**
  * Plays a MediaMTX path over WebRTC (WHEP) through Caddy's login-protected /studio/ proxy.
@@ -67,6 +68,41 @@ function Player({ path, on }: { path: string; on: boolean }) {
   );
 }
 
+function Obs() {
+  const q = useObs();
+  const qc = useQueryClient();
+  const send = useMutation({
+    mutationFn: ([path, body]: [string, object]) => api("POST", path, body),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["obs"] }),
+  });
+  const o = q.data;
+  if (!o?.configured) return null;
+  return (
+    <section className="card flex flex-col gap-3 p-3" aria-label="OBS">
+      <div className="flex items-center gap-2">
+        <span className={`h-3 w-3 rounded-full border-2 border-line ${!o.reachable ? "bg-bad" : o.recording ? "bg-bad animate-pulse" : "bg-accent"}`} />
+        <h2 className="flex-1 font-bold">OBS</h2>
+        {o.reachable && o.streaming && <span className="text-sm font-bold text-warn">Streaming</span>}
+        {o.reachable && (
+          <button className={`btn ${o.recording ? "bg-bad text-white" : ""}`} disabled={send.isPending} onClick={() => send.mutate(["/api/obs/record", { on: !o.recording }])}>
+            {o.recording ? `Stop recording ${o.recordTime?.slice(0, 8) ?? ""}` : "Record"}
+          </button>
+        )}
+      </div>
+      {!o.reachable ? (
+        <p className="text-sm text-dim">{o.error} Is OBS open on crashmetheus?</p>
+      ) : (
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Scenes">
+          {o.scenes.map((sc) => (
+            <button key={sc} className={`btn ${sc === o.scene ? "bg-accent text-black" : ""}`} aria-pressed={sc === o.scene} disabled={send.isPending} onClick={() => send.mutate(["/api/obs/scene", { scene: sc }])}>{sc}</button>
+          ))}
+        </div>
+      )}
+      {send.isError && <p role="alert" className="text-sm font-bold text-bad">{send.error.message}</p>}
+    </section>
+  );
+}
+
 const statusOf = (c: StudioCamera) => (c.live ? "Live" : c.onDemand ? "Ready" : "Offline");
 
 export function Studio() {
@@ -81,6 +117,7 @@ export function Studio() {
   const open = s.cameras.find((c) => c.path === full && active(c));
   return (
     <div className="flex flex-col gap-3 pr-2 pb-2">
+      <Obs />
       {!s.reachable && <p role="status" className="card font-bold text-warn">{s.error}</p>}
       <div className="grid gap-3 sm:grid-cols-2">
         {s.cameras.map((c) => (

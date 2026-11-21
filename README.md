@@ -18,6 +18,8 @@ Desk dashboard: Spotify remote, clock/timer, five shortcuts. React + Vite web ap
 | `HA_ANNOUNCE_ENTITY` | for announce | notify entity, e.g. `notify.living_room_amey_s_echo_dot_announce` (Alexa Devices integration). |
 | `STUDIO_API` | for Studio | MediaMTX API origin on the camera host, e.g. `http://192.168.31.247:9997`. |
 | `STUDIO_CAMERAS` | no | Optional `Name=path` list: display names, and tiles kept visible while offline, e.g. `DJI Action 2=dji`. Other cameras are discovered from MediaMTX. Unquoted (podman env-file). |
+| `OBS_URL` | no | obs-websocket on crashmetheus, e.g. `ws://192.168.31.247:4455`. Set up with `deploy/studio/obs-setup.sh`. |
+| `OBS_PASSWORD` | with OBS_URL | From `~/.config/nexus-studio/obs.pass` on crashmetheus. Never returned by the API. |
 | `PORT` | no | default 3000 |
 | `NEXUS_DATA_DIR` | no | SQLite location, default `./data` (`/data` in the image) |
 

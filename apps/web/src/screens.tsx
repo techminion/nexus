@@ -156,7 +156,7 @@ function runClient(a: Action, go: (p: string) => void): boolean {
   if (a.type === "url") window.open(a.url, "_blank", "noopener");
   else if (a.type === "module") go(a.module === "dashboard" ? "/" : "/" + a.module);
   else if (a.type === "scene") return a.steps.map((s) => runClient(s, go)).some(Boolean);
-  return a.type === "spotify-device" || a.type === "announce" || a.type === "spotify-play";
+  return a.type === "spotify-device" || a.type === "announce" || a.type === "spotify-play" || a.type === "obs-scene" || a.type === "obs-record";
 }
 
 function Shortcuts({ go }: { go: (p: string) => void }) {
@@ -538,7 +538,7 @@ export function Homelab() {
 }
 
 const blank = (type: string): Action =>
-  type === "url" ? { type, url: "https://" } : type === "module" ? { type, module: "dashboard" } : type === "spotify-device" ? { type, deviceName: "" } : type === "announce" ? { type, message: "" } : type === "spotify-play" ? { type, uri: "spotify:playlist:" } : type === "scene" ? { type, steps: [] } : { type: "none" };
+  type === "url" ? { type, url: "https://" } : type === "module" ? { type, module: "dashboard" } : type === "spotify-device" ? { type, deviceName: "" } : type === "announce" ? { type, message: "" } : type === "spotify-play" ? { type, uri: "spotify:playlist:" } : type === "obs-scene" ? { type, scene: "" } : type === "obs-record" ? { type, on: true } : type === "scene" ? { type, steps: [] } : { type: "none" };
 
 function ActionEditor({ a, set, scene }: { a: Action; set: (a: Action) => void; scene: boolean }) {
   return (
@@ -550,6 +550,8 @@ function ActionEditor({ a, set, scene }: { a: Action; set: (a: Action) => void; 
         <option value="spotify-device">Play on Spotify device</option>
         <option value="announce">Alexa announcement</option>
         <option value="spotify-play">Play Spotify item</option>
+        <option value="obs-scene">OBS: switch scene</option>
+        <option value="obs-record">OBS: start/stop recording</option>
         {scene && <option value="scene">Scene (several steps)</option>}
       </select>
       {a.type === "url" && <input className="input" aria-label="URL" value={a.url} onChange={(e) => set({ ...a, url: e.target.value })} />}
@@ -560,6 +562,13 @@ function ActionEditor({ a, set, scene }: { a: Action; set: (a: Action) => void; 
       )}
       {a.type === "spotify-device" && <input className="input" aria-label="Device name" placeholder="Device name" value={a.deviceName} onChange={(e) => set({ ...a, deviceName: e.target.value })} />}
       {a.type === "spotify-play" && <input className="input" aria-label="Spotify URI" placeholder="spotify:playlist:..." value={a.uri} onChange={(e) => set({ ...a, uri: e.target.value.trim() })} />}
+      {a.type === "obs-scene" && <input className="input" aria-label="OBS scene name" placeholder="Scene name (as in OBS)" maxLength={100} value={a.scene} onChange={(e) => set({ ...a, scene: e.target.value })} />}
+      {a.type === "obs-record" && (
+        <select className="input" aria-label="Recording" value={a.on ? "start" : "stop"} onChange={(e) => set({ ...a, on: e.target.value === "start" })}>
+          <option value="start">Start recording</option>
+          <option value="stop">Stop recording</option>
+        </select>
+      )}
       {a.type === "announce" && <input className="input" aria-label="Announcement message" placeholder="Message" maxLength={300} value={a.message} onChange={(e) => set({ ...a, message: e.target.value })} />}
       {a.type === "scene" && (
         <div className="flex flex-col gap-2 border-l-[3px] border-line pl-3">

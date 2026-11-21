@@ -1,6 +1,7 @@
 import { createHomeAssistant } from "../src/homeassistant.ts";
 import { cameraName, parseCameras } from "../src/studio.ts";
 import { parseHosts } from "../src/homelab.ts";
+import { createObs } from "../src/obs.ts";
 import { createSpotify } from "../src/spotify.ts";
 import { openKv } from "../src/db.ts";
 import { test } from "node:test";
@@ -387,4 +388,21 @@ test("studio: camera list parsing, auth-guarded status and proxy check, offline 
   } finally {
     globalThis.fetch = realFetch;
   }
+});
+
+test("obs actions and status", async () => {
+  assert.equal(validateAction({ type: "obs-scene", scene: "Desk" }), null);
+  assert.equal(validateAction({ type: "obs-record", on: true }), null);
+  assert.equal(validateAction({ type: "scene", steps: [{ type: "obs-scene", scene: "Desk" }, { type: "obs-record", on: false }] }), null);
+  assert.ok(validateAction({ type: "obs-scene", scene: "" }));
+  assert.ok(validateAction({ type: "obs-record", on: "yes" }));
+  assert.ok(validateAction({ type: "obs-record", on: true, extra: 1 }));
+  assert.deepEqual(await createObs({}).status(), { configured: false });
+  const warned: string[] = [];
+  assert.deepEqual(await createObs({ url: "http://x/" }, (m) => warned.push(m)).status(), { configured: false });
+  assert.equal(warned.length, 1);
+  // Nothing listens on port 9 locally: reported as unreachable, not thrown.
+  const s = (await createObs({ url: "ws://127.0.0.1:9" }).status()) as { reachable: boolean };
+  assert.equal(s.reachable, false);
+  await assert.rejects(createObs({ url: "ws://127.0.0.1:9" }).record(true), /reach OBS|closed the connection/);
 });
