@@ -32,13 +32,41 @@ export function createHomeAssistant(cfg: HaCfg, warn: (m: string) => void = () =
   return {
     announceConfigured: configured && !!entity,
     voiceConfigured: configured && !!voice,
-    /** The Echo's latest voice command (Alexa Devices voice event entity): `at` changes with every new command. */
-    async lastVoice() {
-      if (!configured || !voice) throw new AppError(503, "not_configured", "Voice commands are not configured (HA_VOICE_ENTITY).");
-      const r = await call("GET", `/api/states/${voice}`);
-      if (!r.ok) throw new AppError(502, "ha", `Home Assistant returned ${r.status} for ${voice}.`);
-      const j = (await r.json().catch(() => null)) as { state?: unknown; attributes?: { voice_command?: unknown } } | null;
-      return { at: String(j?.state ?? ""), text: typeof j?.attributes?.voice_command === "string" ? j.attributes.voice_command : "" };
+    /**
+     * Calls onCommand with each new Echo voice command, live over HA's websocket (state_changed of the voice event
+     * entity). Reconnects with backoff; returns a function that stops it.
+     */
+    watchVoice(onCommand: (text: string) => void) {
+      if (!configured || !voice) return () => {};
+      let ws: WebSocket | undefined, retry: ReturnType<typeof setTimeout> | undefined, stopped = false, delay = 1000, lastErr = "";
+      const fail = (m: string) => { if (m !== lastErr) warn(`voice commands: ${m}`); lastErr = m; };
+      const open = () => {
+        const sock = (ws = new WebSocket(`${url!.replace(/^http/, "ws")}/api/websocket`));
+        sock.onmessage = (m) => {
+          let d;
+          try { d = JSON.parse(String(m.data)); } catch { return; }
+          if (d?.type === "auth_required") sock.send(JSON.stringify({ type: "auth", access_token: cfg.token }));
+          else if (d?.type === "auth_ok") sock.send(JSON.stringify({ id: 1, type: "subscribe_events", event_type: "state_changed" }));
+          else if (d?.type === "auth_invalid") fail("Home Assistant rejected the token (check HA_TOKEN).");
+          else if (d?.type === "result" && d.id === 1) d.success ? ((delay = 1000), (lastErr = "")) : fail("Home Assistant refused the event subscription.");
+          else if (d?.type === "event" && d.event?.data?.entity_id === voice) {
+            const s = d.event.data.new_state;
+            // An event entity's state is the time of its last event. Only act on fresh ones: HA restarts and
+            // reconnects re-announce the restored old state, which must never replay a command.
+            const at = Date.parse(s?.state);
+            if (typeof s?.attributes?.voice_command === "string" && Math.abs(Date.now() - at) < 30_000) onCommand(s.attributes.voice_command);
+          }
+        };
+        sock.onerror = () => {}; // onclose follows
+        sock.onclose = () => {
+          if (stopped) return;
+          fail("lost the Home Assistant connection, reconnecting");
+          retry = setTimeout(open, delay);
+          delay = Math.min(delay * 2, 60_000);
+        };
+      };
+      open();
+      return () => { stopped = true; clearTimeout(retry); ws?.close(); };
     },
     async status() {
       if (!configured) return { configured: false, reachable: false, error: null, sensors: [], voice: false };

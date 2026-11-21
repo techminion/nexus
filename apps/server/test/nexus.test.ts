@@ -416,7 +416,7 @@ test("obs rejects malformed urls without throwing", async () => {
   }
 });
 
-test("voice commands: phrase matching and HA voice event read", async () => {
+test("voice commands: phrase matching and the HA live voice event", async () => {
   const sc = [
     { label: "Studio mode", action: { type: "obs-record", on: true } as const },
     { label: "Unused", action: { type: "none" } as const },
@@ -433,14 +433,39 @@ test("voice commands: phrase matching and HA voice event read", async () => {
   assert.equal(createHomeAssistant({ url: "http://ha:8123", token: "t", voiceEntity: "sensor.x" }, (m) => warned.push(m)).voiceConfigured, false);
   assert.equal(warned.length, 1);
   const ha = createHomeAssistant({ url: "http://ha:8123", token: "t", voiceEntity: "event.echo_voice_event" });
-  const realFetch = globalThis.fetch;
-  globalThis.fetch = async (u: any) => {
-    assert.equal(String(u), "http://ha:8123/api/states/event.echo_voice_event");
-    return Response.json({ state: "2026-11-21T11:47:39.290+00:00", attributes: { voice_command: "alexa studio mode" } });
-  };
+  // A fake HA websocket: checks the auth + subscription handshake, then pushes state_changed events.
+  const RealWS = globalThis.WebSocket;
+  const socks: any[] = [];
+  globalThis.WebSocket = class {
+    sent: any[] = []; closed = false; onmessage: any; onclose: any; onerror: any;
+    url: string;
+    constructor(url: string) { this.url = url; socks.push(this); }
+    send(m: string) { this.sent.push(JSON.parse(m)); }
+    close() { this.closed = true; }
+    emit(d: unknown) { this.onmessage({ data: JSON.stringify(d) }); }
+  } as any;
   try {
-    assert.deepEqual(await ha.lastVoice(), { at: "2026-11-21T11:47:39.290+00:00", text: "alexa studio mode" });
-  } finally { globalThis.fetch = realFetch; }
+    const heard: string[] = [];
+    const stop = ha.watchVoice((t) => heard.push(t));
+    const s = socks[0];
+    assert.equal(s.url, "ws://ha:8123/api/websocket");
+    s.emit({ type: "auth_required" });
+    assert.deepEqual(s.sent[0], { type: "auth", access_token: "t" });
+    s.emit({ type: "auth_ok" });
+    assert.deepEqual(s.sent[1], { id: 1, type: "subscribe_events", event_type: "state_changed" });
+    s.emit({ id: 1, type: "result", success: true });
+    const ev = (entity_id: string, state: string, text: string) =>
+      s.emit({ id: 1, type: "event", event: { event_type: "state_changed", data: { entity_id, new_state: { state, attributes: { voice_command: text } } } } });
+    ev("event.echo_voice_event", new Date().toISOString(), "alexa studio mode");
+    ev("event.other", new Date().toISOString(), "alexa focus");
+    ev("event.echo_voice_event", "2026-11-21T11:47:39.290+00:00", "alexa old command"); // restored state after an HA restart
+    ev("event.echo_voice_event", "unavailable", "alexa focus");
+    assert.deepEqual(heard, ["alexa studio mode"]);
+    stop();
+    assert.ok(s.closed);
+    s.onclose();
+    assert.equal(socks.length, 1, "no reconnect after stop");
+  } finally { globalThis.WebSocket = RealWS; }
 });
 
 test("mac actions, status and route", async () => {

@@ -146,33 +146,15 @@ export async function buildApp(cfg: Config) {
   });
 
   // Voice: "Alexa, <shortcut label>" runs that shortcut. The Echo's voice event is read from HA.
-  if (ha.voiceConfigured) {
-    let last: string | undefined; // the first read is a baseline, so a restart never replays an old command
-    let busy = false, lastErr = "";
-    const tick = async () => {
-      if (busy) return;
-      busy = true;
-      try {
-        const v = await ha.lastVoice();
-        lastErr = "";
-        const fresh = last !== undefined && v.at !== last;
-        last = v.at;
-        const sc = fresh ? settings().shortcuts[voiceShortcut(v.text, settings().shortcuts)] : undefined;
-        if (sc) {
-          const { results } = await runShortcut(sc);
-          app.log.info({ shortcut: sc.label, results: results.map((r) => r.status) }, "voice shortcut");
-        }
-      } catch (e) {
-        const m = e instanceof Error ? e.message : String(e);
-        if (m !== lastErr) app.log.warn(`voice commands: ${m}`);
-        lastErr = m;
-      } finally { busy = false; }
-    };
-    // shortcut: polls HA every 2 s; switch to HA's websocket event subscription if the delay matters.
-    const timer = setInterval(() => void tick(), 2000);
-    timer.unref();
-    app.addHook("onClose", async () => clearInterval(timer));
-  }
+  const stopVoice = ha.watchVoice((text) => {
+    const sc = settings().shortcuts[voiceShortcut(text, settings().shortcuts)];
+    if (!sc) return; // unmatched commands are not logged: they are ordinary Alexa requests
+    runShortcut(sc).then(
+      ({ results }) => app.log.info({ shortcut: sc.label, results: results.map((r) => r.status) }, "voice shortcut"),
+      (e) => app.log.warn(`voice shortcut ${sc.label}: ${e instanceof Error ? e.message : e}`),
+    );
+  });
+  app.addHook("onClose", async () => stopVoice());
 
   app.get("/api/homelab", async () => homelab.get());
   app.get("/api/ha/status", async () => ha.status());
