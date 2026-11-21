@@ -12,6 +12,13 @@ export type Action =
   | { type: "scene"; steps: Action[] }
   | { type: "none" };
 export interface Shortcut { label: string; action: Action }
+/** "Alexa, Studio mode!" -> "studio mode": lowercase words, leading wake word dropped. */
+export const voicePhrase = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/^(alexa|echo|computer|amazon|ziggy) /, "");
+/** Index of the shortcut whose label is exactly what was said (after voicePhrase), or -1. */
+export const voiceShortcut = (said: string, shortcuts: Shortcut[]) => {
+  const p = voicePhrase(said);
+  return p ? shortcuts.findIndex((s) => s.action.type !== "none" && voicePhrase(s.label) === p) : -1;
+};
 export const THEMES = ["dark", "light", "system"] as const;
 export interface Settings { clock24h: boolean; theme?: (typeof THEMES)[number]; shortcuts: Shortcut[] }
 

@@ -15,7 +15,7 @@ const app = await buildApp({
   homelab: { containersFile: process.env.NEXUS_CONTAINERS_FILE, hosts: process.env.NEXUS_HOSTS },
   studio: { api: process.env.STUDIO_API, cameras: process.env.STUDIO_CAMERAS },
   obs: { url: process.env.OBS_URL, password: process.env.OBS_PASSWORD },
-  ha: { url: process.env.HA_URL, token: process.env.HA_TOKEN, sensors: process.env.HA_SENSORS, announceEntity: process.env.HA_ANNOUNCE_ENTITY },
+  ha: { url: process.env.HA_URL, token: process.env.HA_TOKEN, sensors: process.env.HA_SENSORS, announceEntity: process.env.HA_ANNOUNCE_ENTITY, voiceEntity: process.env.HA_VOICE_ENTITY },
   // dev: ../../web/dist relative to src; prod image sets WEB_DIST
   webDist: process.env.WEB_DIST ?? fileURLToPath(new URL("../../web/dist", import.meta.url)),
 });

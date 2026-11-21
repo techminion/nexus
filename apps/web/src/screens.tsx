@@ -588,6 +588,7 @@ function ActionEditor({ a, set, scene }: { a: Action; set: (a: Action) => void; 
 function SettingsForm({ saved }: { saved: Settings }) {
   const qc = useQueryClient();
   const [sc, setSc] = useState<Shortcut[]>(saved.shortcuts);
+  const voice = useHa().data?.voice;
   const save = useMutation({
     mutationFn: (s: Settings) => api<Settings>("PUT", "/api/settings", s),
     onSuccess: (s) => qc.setQueryData(["settings"], s),
@@ -595,6 +596,7 @@ function SettingsForm({ saved }: { saved: Settings }) {
   return (
     <section className="card flex flex-col gap-3">
       <h2 className="text-lg font-semibold">Shortcuts</h2>
+      {voice && <p className="text-sm text-dim">Voice: say "Alexa, " and a shortcut's name to run it (page and link steps only run from the screen).</p>}
       {sc.map((s, i) => (
         <div key={i} className="flex flex-col gap-2 rounded-lg border-[3px] border-line bg-bg p-3">
           <input className="input" aria-label={`Shortcut ${i + 1} label`} maxLength={40} value={s.label} onChange={(e) => setSc(sc.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />

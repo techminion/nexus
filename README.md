@@ -32,6 +32,7 @@ Interactive version: [docs/architecture.html](docs/architecture.html) (open it i
 | `HA_TOKEN` | for Alexa | HA long-lived access token (secret, never returned by the API). |
 | `HA_SENSORS` | no | Comma-separated allowlist of entity ids shown on Devices, e.g. `sensor.echo_dot_temperature,weather.home`. The dashboard shows the first `weather.*` entity and the first °C sensor as room temperature. |
 | `HA_ANNOUNCE_ENTITY` | for announce | notify entity, e.g. `notify.living_room_amey_s_echo_dot_announce` (Alexa Devices integration). |
+| `HA_VOICE_ENTITY` | for voice | The Echo's voice event entity, e.g. `event.<echo>_voice_event` (Alexa Devices). "Alexa, <shortcut name>" then runs that shortcut. Add an Alexa routine with the same phrase (action: "Alexa says OK") so the Echo doesn't answer "I don't know that". |
 | `STUDIO_API` | for Studio | MediaMTX API origin on the camera host, e.g. `http://192.168.31.247:9997`. |
 | `STUDIO_CAMERAS` | no | Optional `Name=path` list: display names, and tiles kept visible while offline, e.g. `DJI Action 2=cam/dji`. Other cameras are discovered from MediaMTX. Unquoted (podman env-file). |
 | `OBS_URL` | no | obs-websocket on crashmetheus, e.g. `ws://192.168.31.247:4455`. Set up with `deploy/studio/obs-setup.sh`. |

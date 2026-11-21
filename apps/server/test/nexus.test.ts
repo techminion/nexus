@@ -6,7 +6,7 @@ import { createSpotify } from "../src/spotify.ts";
 import { openKv } from "../src/db.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validateAction, validateSettings, DEFAULT_SETTINGS } from "../src/actions.ts";
+import { validateAction, validateSettings, voiceShortcut, DEFAULT_SETTINGS } from "../src/actions.ts";
 import { buildApp } from "../src/app.ts";
 
 test("action validation", () => {
@@ -413,4 +413,31 @@ test("obs rejects malformed urls without throwing", async () => {
     assert.deepEqual(await createObs({ url }, (m) => warned.push(m)).status(), { configured: false }, url);
     assert.equal(warned.length, 1, url);
   }
+});
+
+test("voice commands: phrase matching and HA voice event read", async () => {
+  const sc = [
+    { label: "Studio mode", action: { type: "obs-record", on: true } as const },
+    { label: "Unused", action: { type: "none" } as const },
+    { label: "Focus!", action: { type: "announce", message: "x" } as const },
+  ];
+  assert.equal(voiceShortcut("alexa studio mode", sc), 0);
+  assert.equal(voiceShortcut("Alexa, Studio-Mode.", sc), 0);
+  assert.equal(voiceShortcut("alexa focus", sc), 2);
+  assert.equal(voiceShortcut("alexa unused", sc), -1, "empty slots never match");
+  assert.equal(voiceShortcut("alexa start studio mode", sc), -1, "whole phrase only");
+  assert.equal(voiceShortcut("alexa", sc), -1);
+
+  const warned: string[] = [];
+  assert.equal(createHomeAssistant({ url: "http://ha:8123", token: "t", voiceEntity: "sensor.x" }, (m) => warned.push(m)).voiceConfigured, false);
+  assert.equal(warned.length, 1);
+  const ha = createHomeAssistant({ url: "http://ha:8123", token: "t", voiceEntity: "event.echo_voice_event" });
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (u: any) => {
+    assert.equal(String(u), "http://ha:8123/api/states/event.echo_voice_event");
+    return Response.json({ state: "2026-11-21T11:47:39.290+00:00", attributes: { voice_command: "alexa studio mode" } });
+  };
+  try {
+    assert.deepEqual(await ha.lastVoice(), { at: "2026-11-21T11:47:39.290+00:00", text: "alexa studio mode" });
+  } finally { globalThis.fetch = realFetch; }
 });

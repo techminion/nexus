@@ -9,7 +9,7 @@ import { createHomelab, type HomelabCfg } from "./homelab.ts";
 import { createHomeAssistant, type HaCfg } from "./homeassistant.ts";
 import { createStudio, type StudioCfg } from "./studio.ts";
 import { createObs, type ObsCfg } from "./obs.ts";
-import { CONTEXT_RE, DEFAULT_SETTINGS, TRACK_RE, validateSettings, type Action, type Settings } from "./actions.ts";
+import { CONTEXT_RE, DEFAULT_SETTINGS, TRACK_RE, validateSettings, voiceShortcut, type Action, type Settings, type Shortcut } from "./actions.ts";
 
 export interface Config {
   password: string;
@@ -113,10 +113,8 @@ export async function buildApp(cfg: Config) {
     return req.body;
   });
 
-  app.post("/api/shortcuts/:index/run", async (req, reply) => {
-    const i = Number((req.params as { index: string }).index);
-    const sc = settings().shortcuts[i];
-    if (!Number.isInteger(i) || !sc) return reply.code(404).send({ error: { code: "not_found", message: "No such shortcut." } });
+  // Runs a shortcut's server-side steps; page and URL steps are left to the browser ("client").
+  async function runShortcut(sc: Shortcut) {
     const steps: Action[] = sc.action.type === "scene" ? sc.action.steps : [sc.action];
     const results = [];
     for (const s of steps) {
@@ -134,7 +132,43 @@ export async function buildApp(cfg: Config) {
       }
     }
     return { results };
+  }
+
+  app.post("/api/shortcuts/:index/run", async (req, reply) => {
+    const i = Number((req.params as { index: string }).index);
+    const sc = settings().shortcuts[i];
+    if (!Number.isInteger(i) || !sc) return reply.code(404).send({ error: { code: "not_found", message: "No such shortcut." } });
+    return runShortcut(sc);
   });
+
+  // Voice: "Alexa, <shortcut label>" runs that shortcut. The Echo's voice event is read from HA.
+  if (ha.voiceConfigured) {
+    let last: string | undefined; // the first read is a baseline, so a restart never replays an old command
+    let busy = false, lastErr = "";
+    const tick = async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        const v = await ha.lastVoice();
+        lastErr = "";
+        const fresh = last !== undefined && v.at !== last;
+        last = v.at;
+        const sc = fresh ? settings().shortcuts[voiceShortcut(v.text, settings().shortcuts)] : undefined;
+        if (sc) {
+          const { results } = await runShortcut(sc);
+          app.log.info({ shortcut: sc.label, results: results.map((r) => r.status) }, "voice shortcut");
+        }
+      } catch (e) {
+        const m = e instanceof Error ? e.message : String(e);
+        if (m !== lastErr) app.log.warn(`voice commands: ${m}`);
+        lastErr = m;
+      } finally { busy = false; }
+    };
+    // shortcut: polls HA every 2 s; switch to HA's websocket event subscription if the delay matters.
+    const timer = setInterval(() => void tick(), 2000);
+    timer.unref();
+    app.addHook("onClose", async () => clearInterval(timer));
+  }
 
   app.get("/api/homelab", async () => homelab.get());
   app.get("/api/ha/status", async () => ha.status());

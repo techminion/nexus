@@ -1,13 +1,15 @@
 import { AppError } from "./spotify.ts";
 
-export interface HaCfg { url?: string; token?: string; sensors?: string; announceEntity?: string }
+export interface HaCfg { url?: string; token?: string; sensors?: string; announceEntity?: string; voiceEntity?: string }
 const NOTIFY_ENTITY = /^notify\.[a-z0-9_]+$/;
 const ENTITY = /^[a-z_]+\.[a-z0-9_]+$/;
+const EVENT_ENTITY = /^event\.[a-z0-9_]+$/;
 
 export function createHomeAssistant(cfg: HaCfg, warn: (m: string) => void = () => {}) {
   const url = /^https?:\/\/[^/?#]+$/.test(cfg.url?.replace(/\/$/, "") ?? "") ? cfg.url!.replace(/\/$/, "") : (cfg.url && warn("HA_URL: must be an http(s) origin, HA disabled"), undefined);
   const sensors = (cfg.sensors ?? "").split(",").map((s) => s.trim()).filter((s) => s && (ENTITY.test(s) || (warn(`HA_SENSORS: ignoring "${s}"`), false)));
   const entity = cfg.announceEntity && (NOTIFY_ENTITY.test(cfg.announceEntity) || (warn("HA_ANNOUNCE_ENTITY: must be notify.<name>, announce disabled"), false)) ? cfg.announceEntity : undefined;
+  const voice = cfg.voiceEntity && (EVENT_ENTITY.test(cfg.voiceEntity) || (warn("HA_VOICE_ENTITY: must be event.<name>, voice commands disabled"), false)) ? cfg.voiceEntity : undefined;
   const configured = !!(url && cfg.token);
   let cache: { at: number; value: unknown } | undefined;
   let polling: Promise<unknown> | undefined;
@@ -29,8 +31,17 @@ export function createHomeAssistant(cfg: HaCfg, warn: (m: string) => void = () =
 
   return {
     announceConfigured: configured && !!entity,
+    voiceConfigured: configured && !!voice,
+    /** The Echo's latest voice command (Alexa Devices voice event entity): `at` changes with every new command. */
+    async lastVoice() {
+      if (!configured || !voice) throw new AppError(503, "not_configured", "Voice commands are not configured (HA_VOICE_ENTITY).");
+      const r = await call("GET", `/api/states/${voice}`);
+      if (!r.ok) throw new AppError(502, "ha", `Home Assistant returned ${r.status} for ${voice}.`);
+      const j = (await r.json().catch(() => null)) as { state?: unknown; attributes?: { voice_command?: unknown } } | null;
+      return { at: String(j?.state ?? ""), text: typeof j?.attributes?.voice_command === "string" ? j.attributes.voice_command : "" };
+    },
     async status() {
-      if (!configured) return { configured: false, reachable: false, error: null, sensors: [] };
+      if (!configured) return { configured: false, reachable: false, error: null, sensors: [], voice: false };
       if (cache && Date.now() - cache.at < 10_000) return cache.value;
       return (polling ??= poll().finally(() => (polling = undefined)));
     },
@@ -59,9 +70,9 @@ export function createHomeAssistant(cfg: HaCfg, warn: (m: string) => void = () =
         if (id.startsWith("weather.")) return { id, name, state: String(a.temperature ?? ""), unit: a.temperature_unit ? String(a.temperature_unit) : null, condition: String(j.state ?? "") };
         return { id, name, state: String(j.state ?? ""), unit: a.unit_of_measurement ? String(a.unit_of_measurement) : null };
       }));
-      value = { configured: true, reachable: true, error: null, sensors: got.filter((x) => x) };
+      value = { configured: true, reachable: true, error: null, sensors: got.filter((x) => x), voice: !!voice };
     } catch (e) {
-      value = { configured: true, reachable: false, error: e instanceof AppError ? e.message : "Home Assistant returned an unexpected response.", sensors: [] };
+      value = { configured: true, reachable: false, error: e instanceof AppError ? e.message : "Home Assistant returned an unexpected response.", sensors: [], voice: !!voice };
     }
     cache = { at: Date.now(), value };
     return value;
