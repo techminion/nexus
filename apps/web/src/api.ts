@@ -28,7 +28,8 @@ export type Action =
   | { type: "scene"; steps: Action[] }
   | { type: "none" };
 export interface Shortcut { label: string; action: Action }
-export interface Settings { clock24h: boolean; shortcuts: Shortcut[] }
+export type Theme = "dark" | "light" | "system";
+export interface Settings { clock24h: boolean; theme?: Theme; shortcuts: Shortcut[] }
 export interface Playback {
   track: string | null; artists: string[]; album: string | null; art: string | null;
   progress_ms: number; duration_ms: number; is_playing: boolean; shuffle: boolean;

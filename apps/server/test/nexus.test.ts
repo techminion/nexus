@@ -42,6 +42,13 @@ test("auth guard and settings", async () => {
   assert.doesNotMatch(s.body, /token|access|refresh|secret/i);
   const bad = await app.inject({ method: "PUT", url: "/api/settings", cookies, payload: { ...DEFAULT_SETTINGS, shortcuts: DEFAULT_SETTINGS.shortcuts.map(() => ({ label: "x", action: { type: "url", url: "javascript:1" } })) } });
   assert.equal(bad.statusCode, 400);
+  // theme: optional (older saved settings lack it), one of three values, nothing else allowed
+  const { theme: _t, ...legacy } = DEFAULT_SETTINGS;
+  assert.equal((await app.inject({ method: "PUT", url: "/api/settings", cookies, payload: legacy })).statusCode, 200);
+  assert.equal((await app.inject({ method: "PUT", url: "/api/settings", cookies, payload: { ...DEFAULT_SETTINGS, theme: "light" } })).statusCode, 200);
+  assert.equal((await app.inject({ url: "/api/settings", cookies })).json().theme, "light");
+  assert.equal((await app.inject({ method: "PUT", url: "/api/settings", cookies, payload: { ...DEFAULT_SETTINGS, theme: "pink" } })).statusCode, 400);
+  assert.equal((await app.inject({ method: "PUT", url: "/api/settings", cookies, payload: { ...DEFAULT_SETTINGS, extra: 1 } })).statusCode, 400);
   const st = await app.inject({ url: "/api/spotify/state", cookies });
   assert.equal(st.json().connected, false);
   // Encoded paths route to /api/* after decoding; the guard must still apply.

@@ -1,20 +1,24 @@
 @import "tailwindcss";
 
-/* Dark neobrutalism: near-black page, dark blocks, thick cream outlines, hard offset shadows. */
+/* Neobrutalism: thick outlines and hard offset shadows. Each colour is light-dark(light, dark);
+   the root color-scheme (set from the Theme setting) picks one, and "system" follows the device. */
 @theme {
-  --color-bg: #111111;
-  --color-surface: #1c1c1c;
-  --color-raised: #2b2716;
-  --color-line: #f2ead3;
-  --color-fg: #f7f3e8;
-  --color-dim: #b8b0a0;
+  --color-bg: light-dark(#fdf3dc, #111111);
+  --color-surface: light-dark(#ffffff, #1c1c1c);
+  --color-raised: light-dark(#fff4b8, #2b2716);
+  --color-line: light-dark(#000000, #f2ead3);
+  --color-fg: light-dark(#111111, #f7f3e8);
+  --color-dim: light-dark(#4a4a4a, #b8b0a0);
   --color-accent: #3ddc84;
-  --color-ok: #3ddc84;
-  --color-warn: #ffb703;
-  --color-bad: #ff5a5f;
+  --color-ok: light-dark(#0a6b35, #3ddc84);
+  --color-warn: light-dark(#a35200, #ffb703);
+  --color-bad: light-dark(#e5383b, #ff5a5f);
 }
 
-:root { color-scheme: only dark; } /* tell Android WebView the page is already dark, so it never recolours it */
+/* Declaring a scheme also stops Android WebView from force-darkening the page. */
+:root { color-scheme: only dark; }
+:root[data-theme="light"] { color-scheme: only light; }
+:root[data-theme="system"] { color-scheme: light dark; }
 html, body, #root { height: 100%; }
 body { background: var(--color-bg); color: var(--color-fg); font-family: ui-rounded, system-ui, sans-serif; overscroll-behavior: none; }
 

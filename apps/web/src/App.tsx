@@ -66,6 +66,11 @@ function Shell({ path, go }: { path: string; go: (p: string) => void }) {
   const ha = useHa();
   const [ambient, setAmbient] = useState(false);
   const h24 = settings?.clock24h ?? true;
+  const theme = settings?.theme ?? "dark";
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem("theme", theme); } catch { /* storage blocked */ }
+  }, [theme]);
   const offline = sp.isError;
   const mod = moduleOf(path);
 

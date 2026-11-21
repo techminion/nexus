@@ -606,6 +606,16 @@ export function SettingsScreen({ onClock }: { onClock: () => void }) {
             <input type="checkbox" className="h-7 w-7 accent-[var(--color-accent)]" checked={settings.data.clock24h} onChange={(e) => clock.mutate({ ...settings.data!, clock24h: e.target.checked })} />
           </label>
         )}
+        {settings.data && (
+          <div className="flex min-h-12 flex-wrap items-center justify-between gap-2" role="radiogroup" aria-label="Theme">
+            Theme
+            <div className="flex gap-2">
+              {(["dark", "light", "system"] as const).map((t) => (
+                <button key={t} role="radio" aria-checked={(settings.data!.theme ?? "dark") === t} className={`btn capitalize ${(settings.data!.theme ?? "dark") === t ? "btn-accent" : ""}`} onClick={() => clock.mutate({ ...settings.data!, theme: t })}>{t}</button>
+              ))}
+            </div>
+          </div>
+        )}
         <button className="btn" onClick={onClock}>Fullscreen clock (tap to exit)</button>
       </section>
       <section className="card flex flex-col gap-3">
