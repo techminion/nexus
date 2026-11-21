@@ -58,6 +58,17 @@ while read -r pname pip _; do
 "
   echo "Phone:  phone/$pname  <- $pip (screen mirror over adb)"
 done < <(cat "$conf/phones" 2>/dev/null || true)
+# DJI Action 2: if $conf/dji holds the Pi's ssh target (e.g. "akhaire@epimetheus.lan"), cam/dji becomes an
+# on-demand preview that has the Pi start the camera's livestream over Bluetooth (see dji-preview.sh).
+install -D -m 755 "$here/dji-preview.sh" ~/.local/opt/nexus-studio/dji-preview.sh
+if read -r djipi _ < "$conf/dji" 2>/dev/null && [[ $djipi =~ ^[a-z0-9_-]+@[a-z0-9.-]+$ ]]; then
+  webcams+="  cam/dji:
+    runOnDemand: $HOME/.local/opt/nexus-studio/dji-preview.sh $djipi
+    runOnDemandStartTimeout: 90s
+    runOnDemandCloseAfter: 20s
+"
+  echo "DJI:    cam/dji  <- Action 2 via $djipi (Bluetooth start, RTMP back)"
+fi
 # Builtins only (no sed/awk), so the password never appears in a process command line;
 # write a 0600 temp file and rename, so a failure never leaves a truncated config behind.
 tpl=$(<"$here/mediamtx.yml")
