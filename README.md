@@ -71,3 +71,28 @@ Then: onboard in the HA UI, add the built-in Alexa Devices integration (log in t
 create a long-lived token (Profile → Security), and set in `.env`:
 `HA_URL=http://homeassistant:8123`, `HA_TOKEN`, `HA_ANNOUNCE_ENTITY` (e.g.
 `notify.<echo>_announce`) and optionally `HA_SENSORS`.
+
+## Studio: adding a camera
+
+Every Studio tile is a MediaMTX path on crashmetheus. Nexus lists whatever MediaMTX has, so most cameras need no
+Nexus change. Re-running `deploy/studio/install.sh` restarts MediaMTX, which briefly cuts any preview in progress.
+
+- **USB webcam on crashmetheus:** plug it in and re-run `deploy/studio/install.sh`. Each webcam gets a path named
+  after the device (e.g. `c270-hd-webcam`) that only runs while someone watches.
+- **Android phone (preview by screen mirroring; the phone records full quality itself):**
+  1. Give the phone a fixed DHCP lease so it resolves as e.g. `oneplus.lan`.
+  2. Pair it once from crashmetheus over adb wireless debugging (`adb pair <ip>:<port>` with the pairing code).
+  3. Add a line `oneplus oneplus.lan` to `~/.config/nexus-studio/phones` and re-run `install.sh`. The tile is `phone/oneplus`.
+  4. Before each preview, turn on wireless debugging and open the Camera app. Wireless debugging is switched off
+     again when the preview stops (the Developer options "Wireless debugging" quick tile makes this one tap).
+- **Anything that streams RTMP or RTSP** (Larix, IP cameras, OBS elsewhere): publish to
+  `rtmp://<crashmetheus>/cam/<name>?user=studio&pass=<publish password>`. The password is in
+  `~/.config/nexus-studio/publish.pass` on crashmetheus. Use the two-part `cam/<name>` form; most apps require it.
+  The tile appears while the camera is streaming.
+- **A camera that has to be woken first** (like the DJI Action 2): add a `runOnDemand` script like
+  `deploy/studio/dji-preview.sh` and a block for it in `install.sh`. For the DJI, put the Pi's ssh target
+  (e.g. `user@epimetheus.lan`) in `~/.config/nexus-studio/dji` and the stream URL in `~/.config/nexus-studio/dji.url`
+  (mode 600) on the Pi.
+- **Optional, fixed name and a tile that stays visible while offline:** add `Name=path` to `STUDIO_CAMERAS` in
+  `/etc/nexus/nexus.env` on the Pi (e.g. `Front Door=cam/front-door`), then `sudo systemctl restart nexus`.
+- **In OBS:** add a Media Source with input `rtsp://127.0.0.1:8554/<path>`.
