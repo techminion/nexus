@@ -321,7 +321,7 @@ function UpNext({ bare }: { bare?: boolean }) {
 }
 
 export const Music = () => (
-  <div className="grid h-full min-h-0 gap-2 landscape:grid-cols-[minmax(19rem,2fr)_3fr] portrait:grid-rows-[auto_1fr]">
+  <div className="grid h-full min-h-0 gap-2 landscape:grid-cols-[minmax(19rem,2fr)_minmax(0,3fr)] portrait:grid-rows-[auto_1fr]">
     <NowPlaying stack />
     <section className="card flex min-h-0 flex-col" aria-label="Browse"><LibraryPanel tabs={["queue", "playlists", "recent", "speakers"]} /></section>
   </div>
@@ -373,7 +373,7 @@ function LibraryPanel({ tabs }: { tabs: Tab[] }) {
       {tab === "playlists" && pl.data?.playlists.length === 0 && <Notice>No playlists.</Notice>}
       {tab === "playlists" && pl.data?.playlists.map((p) => (
         <div key={p.id} className="flex items-center gap-2">
-          <button className="btn flex-1 justify-start gap-3 text-left" aria-label={`Play ${p.name}`} onClick={() => play.mutate({ path: "/api/spotify/play-context", body: { contextUri: p.uri } })}>
+          <button className="btn min-w-0 flex-1 justify-start gap-3 text-left" aria-label={`Play ${p.name}`} onClick={() => play.mutate({ path: "/api/spotify/play-context", body: { contextUri: p.uri } })}>
             <Art src={p.art} />
             <span className="min-w-0"><span className="block truncate">{p.name}</span><span className="block truncate text-sm text-dim">{p.owner} - {p.count} tracks</span></span>
           </button>
@@ -383,7 +383,7 @@ function LibraryPanel({ tabs }: { tabs: Tab[] }) {
       {tab === "recent" && rc.data?.tracks.length === 0 && <Notice>Nothing played recently.</Notice>}
       {tab === "recent" && rc.data?.tracks.map((t) => (
         <div key={t.uri + t.playedAt} className="flex items-center gap-2">
-          <button className="btn flex-1 justify-start gap-3 text-left" aria-label={`Play ${t.name}`} disabled={!t.playable} onClick={() => play.mutate({ path: "/api/spotify/play-uris", body: { uris: [t.uri] } })}>
+          <button className="btn min-w-0 flex-1 justify-start gap-3 text-left" aria-label={`Play ${t.name}`} disabled={!t.playable} onClick={() => play.mutate({ path: "/api/spotify/play-uris", body: { uris: [t.uri] } })}>
             <Art src={t.art} />
             <span className="min-w-0"><span className="block truncate">{t.name}</span><span className="block truncate text-sm text-dim">{t.artists.join(", ")}</span></span>
           </button>
