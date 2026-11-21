@@ -1,6 +1,22 @@
-# Nexus v0.1
+# Nexus
 
-Desk dashboard: Spotify remote, clock/timer, five shortcuts. React + Vite web app served by a Fastify server (SQLite via `node:sqlite`, Node 22).
+Desk dashboard on a Raspberry Pi: Spotify remote, clock and timers, shortcuts, Home Assistant (Alexa), homelab status,
+and a camera Studio with OBS control. React + Vite web app served by a Fastify server (SQLite via `node:sqlite`, Node 22).
+
+## Architecture
+
+![Nexus architecture](docs/architecture.png)
+
+Interactive version: [docs/architecture.html](docs/architecture.html) (open it in a browser; the `⋯` menu exports PNG or PDF).
+
+- **epimetheus (Pi)** runs Nexus, Caddy and Home Assistant as Podman Quadlet units, deployed with `deploy/deploy.sh`.
+  Caddy terminates TLS and forwards camera signalling to MediaMTX only for logged-in sessions.
+- **crashmetheus** runs the Studio: MediaMTX (`deploy/studio/install.sh`) and OBS (`deploy/studio/obs-setup.sh`).
+  Camera paths start on demand when a tile opens and stop after the last viewer leaves. Previews only: phones and the
+  DJI Action 2 record full quality themselves.
+- **Cameras:** USB webcams on crashmetheus, phones mirrored over adb (`phone-preview.sh`), anything that streams RTMP
+  to `rtmp://crashmetheus/cam/<name>`, and the DJI Action 2, which the Pi starts over Bluetooth (`pi/action2.py`,
+  driven by `dji-preview.sh`).
 
 ## Environment
 
@@ -17,7 +33,7 @@ Desk dashboard: Spotify remote, clock/timer, five shortcuts. React + Vite web ap
 | `HA_SENSORS` | no | Comma-separated allowlist of entity ids shown on Devices, e.g. `sensor.echo_dot_temperature,weather.home`. The dashboard shows the first `weather.*` entity and the first °C sensor as room temperature. |
 | `HA_ANNOUNCE_ENTITY` | for announce | notify entity, e.g. `notify.living_room_amey_s_echo_dot_announce` (Alexa Devices integration). |
 | `STUDIO_API` | for Studio | MediaMTX API origin on the camera host, e.g. `http://192.168.31.247:9997`. |
-| `STUDIO_CAMERAS` | no | Optional `Name=path` list: display names, and tiles kept visible while offline, e.g. `DJI Action 2=dji`. Other cameras are discovered from MediaMTX. Unquoted (podman env-file). |
+| `STUDIO_CAMERAS` | no | Optional `Name=path` list: display names, and tiles kept visible while offline, e.g. `DJI Action 2=cam/dji`. Other cameras are discovered from MediaMTX. Unquoted (podman env-file). |
 | `OBS_URL` | no | obs-websocket on crashmetheus, e.g. `ws://192.168.31.247:4455`. Set up with `deploy/studio/obs-setup.sh`. |
 | `OBS_PASSWORD` | with OBS_URL | From `~/.config/nexus-studio/obs.pass` on crashmetheus. Never returned by the API. |
 | `PORT` | no | default 3000 |

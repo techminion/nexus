@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus Architecture</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js" integrity="sha384-en/ztfPSRkGfME4KIm05joYXynqzUgbsG5nMrj/xEFAHXkeZfO3yMK8QQ+mP7p1/" crossorigin="anonymous"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      background: #020617;
+      min-height: 100vh;
+      padding: 2rem;
+      color: white;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .header {
+      margin-bottom: 2rem;
+    }
+    
+    .header-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .pulse-dot {
+      width: 12px;
+      height: 12px;
+      background: #22d3ee;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+    
+    .subtitle {
+      color: #94a3b8;
+      font-size: 0.875rem;
+      margin-left: 1.75rem;
+    }
+    
+    .diagram-container {
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 1rem;
+      border: 1px solid #1e293b;
+      padding: 1.5rem;
+      overflow-x: auto;
+    }
+    
+    svg {
+      width: 100%;
+      min-width: 900px;
+      display: block;
+    }
+    
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+    
+    .card {
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 0.75rem;
+      border: 1px solid #1e293b;
+      padding: 1.25rem;
+    }
+    
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    .card-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    
+    .card-dot.cyan { background: #22d3ee; }
+    .card-dot.emerald { background: #34d399; }
+    .card-dot.violet { background: #a78bfa; }
+    .card-dot.amber { background: #fbbf24; }
+    .card-dot.rose { background: #fb7185; }
+    
+    .card h3 {
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    
+    .card ul {
+      list-style: none;
+      color: #94a3b8;
+      font-size: 0.75rem;
+    }
+    
+    .card li {
+      margin-bottom: 0.375rem;
+    }
+    
+    .footer {
+      text-align: center;
+      margin-top: 1.5rem;
+      color: #475569;
+      font-size: 0.75rem;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 0.5rem;
+      margin-left: auto;
+      flex-shrink: 0;
+      align-items: center;
+    }
+    .toolbar-toggle {
+      background: transparent;
+      border: none;
+      color: #475569;
+      cursor: pointer;
+      font-size: 1.25rem;
+      line-height: 1;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.375rem;
+      transition: color 0.2s, background 0.2s;
+    }
+    .toolbar-toggle:hover { color: #94a3b8; background: rgba(30, 41, 59, 0.5); }
+    .toolbar-actions {
+      display: none;
+      gap: 0.5rem;
+    }
+    .toolbar.expanded .toolbar-actions { display: flex; }
+    .toolbar-actions button {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid #334155;
+      color: #94a3b8;
+      padding: 0.375rem 0.75rem;
+      border-radius: 0.375rem;
+      font-family: inherit;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .toolbar-actions button:hover {
+      background: rgba(51, 65, 85, 0.8);
+      color: white;
+      border-color: #475569;
+    }
+
+    @media print {
+      body { background: #020617; padding: 1rem; }
+      .toolbar { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="report-container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-row">
+        <div class="pulse-dot"></div>
+        <h1>Nexus Architecture</h1>
+        <div class="toolbar">
+          <div class="toolbar-actions">
+            <button onclick="copyAsImage(this)">📋 Copy</button>
+            <button onclick="downloadPNG(this)">🖼️ PNG</button>
+            <button onclick="downloadPDF(this)">📄 PDF</button>
+          </div>
+          <button class="toolbar-toggle" onclick="this.parentElement.classList.toggle('expanded')" title="Export options" aria-label="Export options">⋯</button>
+        </div>
+      </div>
+      <p class="subtitle">Desk dashboard on a Raspberry Pi (epimetheus) with a camera studio on crashmetheus, all on the home LAN</p>
+    </div>
+
+    <!-- Main Diagram -->
+    <div class="diagram-container">
+      <svg viewBox="0 0 1200 600">
+        <defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+          </marker>
+          <marker id="arrow-cyan" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#22d3ee" />
+          </marker>
+          <marker id="arrow-rose" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#fb7185" />
+          </marker>
+          <marker id="arrow-violet" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#a78bfa" />
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid)" />
+
+        <!-- Region boundaries -->
+        <rect x="240" y="70" width="410" height="350" rx="12" fill="rgba(251, 191, 36, 0.05)" stroke="#fbbf24" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="256" y="408" fill="#fbbf24" font-size="9" font-weight="600">epimetheus · Raspberry Pi · Podman Quadlets</text>
+        <rect x="700" y="70" width="470" height="350" rx="12" fill="rgba(251, 191, 36, 0.05)" stroke="#fbbf24" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="1154" y="408" fill="#fbbf24" font-size="9" font-weight="600" text-anchor="end">crashmetheus · Linux desktop · user services</text>
+
+        <!-- Arrows (drawn first so boxes cover them) -->
+        <!-- WebRTC video goes straight from MediaMTX to the browser -->
+        <path d="M 880 110 L 880 40 L 115 40 L 115 118" fill="none" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrow-cyan)"/>
+        <text x="500" y="34" fill="#22d3ee" font-size="8" text-anchor="middle">WebRTC video, direct from MediaMTX to the browser</text>
+        <!-- WHEP signalling via Caddy after forward_auth -->
+        <path d="M 350 120 L 350 95 L 780 95 L 780 108" fill="none" stroke="#fb7185" stroke-width="1.2" stroke-dasharray="5,3" marker-end="url(#arrow-rose)"/>
+        <text x="455" y="90" fill="#fb7185" font-size="8" text-anchor="middle">/studio/*/whep · forward_auth</text>
+        <!-- Nexus -> OBS websocket -->
+        <path d="M 600 110 L 600 58 L 1050 58 L 1050 108" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+        <text x="960" y="53" fill="#94a3b8" font-size="8" text-anchor="middle">obs-websocket :4455 (Pi only)</text>
+        <!-- clients -> Caddy -->
+        <line x1="200" y1="150" x2="268" y2="150" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+        <text x="217" y="143" fill="#94a3b8" font-size="7" text-anchor="middle">HTTPS</text>
+        <path d="M 200 250 L 234 250 L 234 172 L 268 172" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+        <!-- Caddy -> Nexus -->
+        <line x1="430" y1="155" x2="468" y2="155" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+        <!-- Caddy -> HA :8443 -->
+        <line x1="350" y1="190" x2="350" y2="238" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+        <text x="356" y="220" fill="#94a3b8" font-size="7">:8443</text>
+        <!-- Nexus -> SQLite -->
+        <line x1="545" y1="200" x2="545" y2="238" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+        <!-- Nexus -> HA -->
+        <path d="M 470 185 L 450 185 L 450 270 L 432 270" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+        <text x="454" y="232" fill="#94a3b8" font-size="7">REST</text>
+        <!-- Nexus -> MediaMTX API -->
+        <line x1="620" y1="170" x2="728" y2="170" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+        <text x="675" y="163" fill="#94a3b8" font-size="7" text-anchor="middle">API :9997</text>
+        <!-- Nexus -> Spotify -->
+        <path d="M 620 190 L 636 190 L 636 510 L 622 510" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+        <!-- HA -> Echo -->
+        <line x1="350" y1="300" x2="350" y2="478" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+        <text x="356" y="450" fill="#94a3b8" font-size="7">Alexa Devices</text>
+        <!-- dji-preview.sh -> action2.py over ssh -->
+        <line x1="730" y1="355" x2="622" y2="355" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+        <text x="676" y="348" fill="#94a3b8" font-size="7" text-anchor="middle">ssh</text>
+        <!-- action2.py -> DJI over Bluetooth -->
+        <path d="M 560 390 L 560 455 L 1070 455 L 1070 478" fill="none" stroke="#a78bfa" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow-violet)"/>
+        <text x="645" y="450" fill="#a78bfa" font-size="7">BLE: wake · Wi-Fi · live</text>
+        <!-- on-demand sources -> MediaMTX -->
+        <line x1="830" y1="260" x2="830" y2="222" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+        <text x="836" y="245" fill="#94a3b8" font-size="7">RTSP publish</text>
+        <!-- webcams -> sources -->
+        <line x1="960" y1="330" x2="932" y2="330" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+        <!-- Pixel -> sources -->
+        <line x1="795" y1="480" x2="795" y2="372" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+        <text x="801" y="430" fill="#94a3b8" font-size="7">adb · scrcpy</text>
+        <!-- RTMP apps + DJI -> MediaMTX -->
+        <path d="M 945 480 L 945 200 L 932 200" fill="none" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+        <path d="M 1110 480 L 1110 440 L 945 440" fill="none" stroke="#64748b" stroke-width="1.2"/>
+        <text x="1030" y="434" fill="#94a3b8" font-size="7" text-anchor="middle">RTMP cam/dji</text>
+        <!-- MediaMTX -> OBS -->
+        <line x1="930" y1="140" x2="958" y2="140" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+        <text x="944" y="133" fill="#94a3b8" font-size="7" text-anchor="middle">RTSP</text>
+
+        <!-- Clients -->
+        <rect x="30" y="120" width="170" height="60" rx="6" fill="#0f172a"/>
+        <rect x="30" y="120" width="170" height="60" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="115" y="144" fill="white" font-size="11" font-weight="600" text-anchor="middle">Redmi kiosk</text>
+        <text x="115" y="160" fill="#94a3b8" font-size="9" text-anchor="middle">Fully Kiosk · landscape</text>
+        <rect x="30" y="220" width="170" height="60" rx="6" fill="#0f172a"/>
+        <rect x="30" y="220" width="170" height="60" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="115" y="244" fill="white" font-size="11" font-weight="600" text-anchor="middle">Browser</text>
+        <text x="115" y="260" fill="#94a3b8" font-size="9" text-anchor="middle">laptop / phone, logged in</text>
+
+        <!-- Pi -->
+        <rect x="270" y="120" width="160" height="70" rx="6" fill="#0f172a"/>
+        <rect x="270" y="120" width="160" height="70" rx="6" fill="rgba(136, 19, 55, 0.4)" stroke="#fb7185" stroke-width="1.5"/>
+        <text x="350" y="144" fill="white" font-size="11" font-weight="600" text-anchor="middle">Caddy</text>
+        <text x="350" y="160" fill="#94a3b8" font-size="9" text-anchor="middle">TLS (internal CA)</text>
+        <text x="350" y="174" fill="#94a3b8" font-size="8" text-anchor="middle">:443 Nexus · :8443 HA</text>
+
+        <rect x="470" y="110" width="150" height="90" rx="6" fill="#0f172a"/>
+        <rect x="470" y="110" width="150" height="90" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="545" y="134" fill="white" font-size="11" font-weight="600" text-anchor="middle">Nexus</text>
+        <text x="545" y="150" fill="#94a3b8" font-size="9" text-anchor="middle">Fastify · Node 22</text>
+        <text x="545" y="164" fill="#94a3b8" font-size="9" text-anchor="middle">React + Vite web app</text>
+        <text x="545" y="180" fill="#94a3b8" font-size="8" text-anchor="middle">login · shortcuts · /api</text>
+
+        <rect x="470" y="240" width="150" height="50" rx="6" fill="#0f172a"/>
+        <rect x="470" y="240" width="150" height="50" rx="6" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="545" y="262" fill="white" font-size="11" font-weight="600" text-anchor="middle">SQLite</text>
+        <text x="545" y="278" fill="#94a3b8" font-size="9" text-anchor="middle">node:sqlite · /data</text>
+
+        <rect x="270" y="240" width="160" height="60" rx="6" fill="#0f172a"/>
+        <rect x="270" y="240" width="160" height="60" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="350" y="264" fill="white" font-size="11" font-weight="600" text-anchor="middle">Home Assistant</text>
+        <text x="350" y="280" fill="#94a3b8" font-size="9" text-anchor="middle">sensors · announce</text>
+
+        <rect x="470" y="330" width="150" height="60" rx="6" fill="#0f172a"/>
+        <rect x="470" y="330" width="150" height="60" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="545" y="354" fill="white" font-size="11" font-weight="600" text-anchor="middle">action2.py</text>
+        <text x="545" y="370" fill="#94a3b8" font-size="9" text-anchor="middle">user unit nexus-dji</text>
+
+        <rect x="270" y="330" width="160" height="50" rx="6" fill="#0f172a"/>
+        <rect x="270" y="330" width="160" height="50" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="350" y="352" fill="white" font-size="10" font-weight="600" text-anchor="middle">snapshot timer</text>
+        <text x="350" y="368" fill="#94a3b8" font-size="8" text-anchor="middle">podman ps → Homelab page</text>
+
+        <!-- crashmetheus -->
+        <rect x="730" y="110" width="200" height="110" rx="6" fill="#0f172a"/>
+        <rect x="730" y="110" width="200" height="110" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="830" y="134" fill="white" font-size="11" font-weight="600" text-anchor="middle">MediaMTX</text>
+        <text x="830" y="152" fill="#94a3b8" font-size="9" text-anchor="middle">WebRTC/WHEP :8889</text>
+        <text x="830" y="166" fill="#94a3b8" font-size="9" text-anchor="middle">RTMP :1935 (password)</text>
+        <text x="830" y="180" fill="#94a3b8" font-size="9" text-anchor="middle">RTSP 127.0.0.1:8554</text>
+        <text x="830" y="196" fill="#94a3b8" font-size="8" text-anchor="middle">paths start on demand</text>
+
+        <rect x="960" y="110" width="190" height="70" rx="6" fill="#0f172a"/>
+        <rect x="960" y="110" width="190" height="70" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="1055" y="134" fill="white" font-size="11" font-weight="600" text-anchor="middle">OBS Studio</text>
+        <text x="1055" y="150" fill="#94a3b8" font-size="9" text-anchor="middle">scenes · recording</text>
+        <text x="1055" y="164" fill="#94a3b8" font-size="8" text-anchor="middle">→ ~/nexus/videos</text>
+
+        <rect x="730" y="260" width="200" height="110" rx="6" fill="#0f172a"/>
+        <rect x="730" y="260" width="200" height="110" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="830" y="282" fill="white" font-size="11" font-weight="600" text-anchor="middle">runOnDemand sources</text>
+        <text x="830" y="302" fill="#94a3b8" font-size="9" text-anchor="middle">ffmpeg · USB webcams</text>
+        <text x="830" y="318" fill="#94a3b8" font-size="9" text-anchor="middle">phone-preview.sh</text>
+        <text x="830" y="334" fill="#94a3b8" font-size="9" text-anchor="middle">dji-preview.sh</text>
+        <text x="830" y="354" fill="#64748b" font-size="8" text-anchor="middle">run only while someone watches</text>
+
+        <rect x="960" y="300" width="190" height="60" rx="6" fill="#0f172a"/>
+        <rect x="960" y="300" width="190" height="60" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="1055" y="324" fill="white" font-size="11" font-weight="600" text-anchor="middle">USB webcams</text>
+        <text x="1055" y="340" fill="#94a3b8" font-size="9" text-anchor="middle">C270 · laptop camera</text>
+
+        <!-- External services and devices -->
+        <rect x="270" y="480" width="160" height="60" rx="6" fill="#0f172a"/>
+        <rect x="270" y="480" width="160" height="60" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="350" y="504" fill="white" font-size="11" font-weight="600" text-anchor="middle">Echo / Alexa</text>
+        <text x="350" y="520" fill="#94a3b8" font-size="9" text-anchor="middle">Amazon cloud</text>
+
+        <rect x="470" y="480" width="150" height="60" rx="6" fill="#0f172a"/>
+        <rect x="470" y="480" width="150" height="60" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="545" y="504" fill="white" font-size="11" font-weight="600" text-anchor="middle">Spotify Web API</text>
+        <text x="545" y="520" fill="#94a3b8" font-size="9" text-anchor="middle">OAuth PKCE · Premium</text>
+
+        <rect x="730" y="480" width="130" height="60" rx="6" fill="#0f172a"/>
+        <rect x="730" y="480" width="130" height="60" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="795" y="504" fill="white" font-size="11" font-weight="600" text-anchor="middle">Pixel</text>
+        <text x="795" y="520" fill="#94a3b8" font-size="8" text-anchor="middle">screen mirror preview</text>
+
+        <rect x="880" y="480" width="130" height="60" rx="6" fill="#0f172a"/>
+        <rect x="880" y="480" width="130" height="60" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="945" y="504" fill="white" font-size="11" font-weight="600" text-anchor="middle">RTMP apps</text>
+        <text x="945" y="520" fill="#94a3b8" font-size="8" text-anchor="middle">Larix · cam/&lt;name&gt;</text>
+
+        <rect x="1030" y="480" width="140" height="60" rx="6" fill="#0f172a"/>
+        <rect x="1030" y="480" width="140" height="60" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="1100" y="504" fill="white" font-size="11" font-weight="600" text-anchor="middle">DJI Action 2</text>
+        <text x="1100" y="520" fill="#94a3b8" font-size="8" text-anchor="middle">records to its card</text>
+
+        <!-- Legend (below every boundary) -->
+        <text x="30" y="580" fill="#94a3b8" font-size="9" font-weight="600">Legend</text>
+        <rect x="90" y="572" width="16" height="10" rx="2" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1"/>
+        <text x="112" y="580" fill="#94a3b8" font-size="8">Client</text>
+        <rect x="160" y="572" width="16" height="10" rx="2" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1"/>
+        <text x="182" y="580" fill="#94a3b8" font-size="8">Service</text>
+        <rect x="240" y="572" width="16" height="10" rx="2" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1"/>
+        <text x="262" y="580" fill="#94a3b8" font-size="8">Storage</text>
+        <rect x="320" y="572" width="16" height="10" rx="2" fill="rgba(136, 19, 55, 0.4)" stroke="#fb7185" stroke-width="1"/>
+        <text x="342" y="580" fill="#94a3b8" font-size="8">Proxy / auth</text>
+        <rect x="420" y="572" width="16" height="10" rx="2" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1"/>
+        <text x="442" y="580" fill="#94a3b8" font-size="8">Device / external</text>
+        <rect x="550" y="572" width="16" height="10" rx="2" fill="transparent" stroke="#fbbf24" stroke-width="1" stroke-dasharray="3,2"/>
+        <text x="572" y="580" fill="#94a3b8" font-size="8">Host</text>
+        <line x1="620" y1="577" x2="640" y2="577" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="646" y="580" fill="#94a3b8" font-size="8">Video</text>
+        <line x1="690" y1="577" x2="710" y2="577" stroke="#fb7185" stroke-width="1.2" stroke-dasharray="5,3"/>
+        <text x="716" y="580" fill="#94a3b8" font-size="8">Authenticated signalling</text>
+        <line x1="850" y1="577" x2="870" y2="577" stroke="#a78bfa" stroke-width="1.2" stroke-dasharray="4,3"/>
+        <text x="876" y="580" fill="#94a3b8" font-size="8">Bluetooth LE</text>
+      </svg>
+    </div>
+
+    <!-- Info Cards -->
+    <div class="cards">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot emerald"></div>
+          <h3>Pi · epimetheus</h3>
+        </div>
+        <ul>
+          <li>• Nexus, Caddy and Home Assistant run as Podman Quadlet units</li>
+          <li>• Caddy terminates TLS and checks the Nexus session before any camera signalling</li>
+          <li>• deploy/deploy.sh syncs the repo, builds the arm64 image on the Pi and restarts units</li>
+          <li>• Secrets live in /etc/nexus/nexus.env and never leave the server</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot cyan"></div>
+          <h3>Studio · crashmetheus</h3>
+        </div>
+        <ul>
+          <li>• Previews only: phones and the DJI record full quality themselves</li>
+          <li>• Sources start when a tile opens and stop 15–20 s after the last viewer leaves</li>
+          <li>• Phone previews mirror the screen over adb; wireless debugging is switched off after</li>
+          <li>• OBS reads the same paths over local RTSP; Nexus drives scenes and recording</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot violet"></div>
+          <h3>Integrations</h3>
+        </div>
+        <ul>
+          <li>• Spotify: playback, queue, playlists (PKCE, tokens kept in SQLite)</li>
+          <li>• Home Assistant: Alexa announcements and room sensors</li>
+          <li>• Homelab: container snapshot plus TCP checks of NEXUS_HOSTS</li>
+          <li>• Shortcuts chain actions across Spotify, HA, OBS and pages</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <p class="footer">
+      Nexus • home LAN 192.168.31.0/24 • generated with Cocoon-AI architecture-diagram-generator
+    </p>
+  </div>
+
+  <script>
+    async function copyAsImage(btn) {
+      const orig = btn.textContent;
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        btn.textContent = '✓ Copied!';
+      } catch (e) {
+        btn.textContent = '✗ Failed';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+
+    async function downloadPNG(btn) {
+      const orig = btn.textContent;
+      btn.textContent = '⏳ ...';
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const link = document.createElement('a');
+        link.download = 'diagram.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        btn.textContent = '✓ Done!';
+      } catch (e) {
+        btn.textContent = '✗ Failed';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+
+    async function downloadPDF(btn) {
+      const orig = btn.textContent;
+      btn.textContent = '⏳ ...';
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const orientation = canvas.width > canvas.height ? 'landscape' : 'portrait';
+        const pdf = new jsPDF({ orientation, unit: 'px', format: [canvas.width, canvas.height], hotfixes: ['px_scaling'] });
+        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.save('diagram.pdf');
+        btn.textContent = '✓ Done!';
+      } catch (e) {
+        btn.textContent = '✗ Failed';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+  </script>
+</body>
+</html>
