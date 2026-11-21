@@ -11,6 +11,8 @@ Network=nexus.network
 Volume=nexus-data:/data
 # Directory (not file) mount so atomic replaces by nexus-snapshot are visible.
 Volume=/run/nexus:/run/nexus:ro
+# Mac companion ssh key + pinned host key (root-only on the host).
+Volume=/etc/nexus/mac:/etc/nexus/mac:ro
 EnvironmentFile=/etc/nexus/nexus.env
 
 [Service]

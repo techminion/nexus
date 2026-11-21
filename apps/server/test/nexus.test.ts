@@ -1,6 +1,7 @@
 import { createHomeAssistant } from "../src/homeassistant.ts";
 import { cameraName, parseCameras } from "../src/studio.ts";
 import { parseHosts } from "../src/homelab.ts";
+import { createMac } from "../src/mac.ts";
 import { createObs } from "../src/obs.ts";
 import { createSpotify } from "../src/spotify.ts";
 import { openKv } from "../src/db.ts";
@@ -440,4 +441,25 @@ test("voice commands: phrase matching and HA voice event read", async () => {
   try {
     assert.deepEqual(await ha.lastVoice(), { at: "2026-11-21T11:47:39.290+00:00", text: "alexa studio mode" });
   } finally { globalThis.fetch = realFetch; }
+});
+
+test("mac actions, status and route", async () => {
+  assert.equal(validateAction({ type: "mac", command: "volume", arg: "50" }), null);
+  assert.equal(validateAction({ type: "mac", command: "lock" }), null);
+  assert.equal(validateAction({ type: "mac", command: "open", arg: "Spotify" }), null);
+  assert.ok(validateAction({ type: "mac", command: "volume", arg: "101" }));
+  assert.ok(validateAction({ type: "mac", command: "lock", arg: "x" }));
+  assert.ok(validateAction({ type: "mac", command: "reboot" }));
+  assert.ok(validateAction({ type: "mac", command: "open", arg: "a\nb" }));
+  assert.deepEqual(await createMac({}).status(), { configured: false });
+  const warned: string[] = [];
+  assert.equal(createMac({ host: "a b", user: "me" }, (m) => warned.push(m)).configured, false);
+  assert.equal(warned.length, 1);
+  await assert.rejects(createMac({}).run("lock"), /not configured/);
+  const app = await buildApp({ password: "pw", secret: "s".repeat(32), dataDir: ":memory:" });
+  const login = await app.inject({ method: "POST", url: "/api/login", payload: { password: "pw" } });
+  const cookie = String(login.headers["set-cookie"]).split(";")[0];
+  assert.deepEqual((await app.inject({ method: "GET", url: "/api/mac", headers: { cookie } })).json(), { configured: false });
+  assert.equal((await app.inject({ method: "POST", url: "/api/mac", headers: { cookie }, payload: { command: "reboot" } })).statusCode, 400);
+  await app.close();
 });

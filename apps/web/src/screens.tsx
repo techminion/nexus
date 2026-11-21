@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { fmtTime, useNow } from "./App";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, homelabIssues, useHa, useHomelab, useObs, useSettings, useSpotify, useStudio, type Homelab as HomelabData, type Action, type Device, type Item, type Module, type PlaylistInfo, type RecentTrack, type Playback, type Settings, type Shortcut, type SpotifyState } from "./api";
+import { api, homelabIssues, macCommand, MAC_COMMANDS, useHa, useHomelab, useMac, useObs, useSettings, useSpotify, useStudio, type Homelab as HomelabData, type Action, type MacCommand, type Device, type Item, type Module, type PlaylistInfo, type RecentTrack, type Playback, type Settings, type Shortcut, type SpotifyState } from "./api";
 
 export const Icon = ({ d, stroke }: { d: string; stroke?: boolean }) => (
   <svg viewBox="0 0 24 24" className="h-6 w-6" fill={stroke ? "none" : "currentColor"} stroke={stroke ? "currentColor" : "none"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -156,7 +156,7 @@ function runClient(a: Action, go: (p: string) => void): boolean {
   if (a.type === "url") window.open(a.url, "_blank", "noopener");
   else if (a.type === "module") go(a.module === "dashboard" ? "/" : "/" + a.module);
   else if (a.type === "scene") return a.steps.map((s) => runClient(s, go)).some(Boolean);
-  return a.type === "spotify-device" || a.type === "announce" || a.type === "spotify-play" || a.type === "obs-scene" || a.type === "obs-record";
+  return a.type === "spotify-device" || a.type === "announce" || a.type === "spotify-play" || a.type === "obs-scene" || a.type === "obs-record" || a.type === "mac";
 }
 
 function Shortcuts({ go }: { go: (p: string) => void }) {
@@ -426,8 +426,48 @@ export function Devices() {
   return (
     <div className="flex flex-col gap-2">
       <SpotifyDevices />
+      <MacCard />
       <AlexaCard />
     </div>
+  );
+}
+
+function MacCard() {
+  const q = useMac();
+  const qc = useQueryClient();
+  const [vol, setVol] = useState<number | null>(null);
+  const send = useMutation({ mutationFn: (v: [MacCommand, (string | number)?]) => macCommand(...v), onSettled: () => { setVol(null); qc.invalidateQueries({ queryKey: ["mac"] }); } });
+  const m = q.data;
+  if (!m?.configured) return null;
+  if (!m.reachable) return <section className="card" aria-label="Mac"><h2 className="font-bold">Mac</h2><p className="text-sm text-dim">Mac offline</p></section>;
+  const go = (...v: [MacCommand, (string | number)?]) => send.mutate(v);
+  return (
+    <section className="card flex flex-col gap-3" aria-label="Mac">
+      <div className="flex items-center gap-2">
+        <h2 className="flex-1 font-bold">Mac</h2>
+        <span className="text-sm text-dim">{[m.battery !== null && `${m.battery}%${m.ac ? " charging" : ""}`, m.uptime !== null && `up ${m.uptime >= 86400 ? `${Math.floor(m.uptime / 86400)}d` : `${Math.floor(m.uptime / 3600)}h`}`].filter(Boolean).join(" · ")}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <button className="btn" aria-label="Previous" onClick={() => go("previous")}><Icon d={I.prev} /></button>
+        <button className="btn btn-accent" aria-label="Play or pause" onClick={() => go("playpause")}><Icon d={I.play} /></button>
+        <button className="btn" aria-label="Next" onClick={() => go("next")}><Icon d={I.next} /></button>
+        <button className="btn ml-auto" onClick={() => go("lock")} title="Locks only if the Mac asks for a password immediately after the display sleeps">Sleep display</button>
+      </div>
+      {m.volume !== null && (
+        <div className="flex items-center gap-2">
+          <button className="btn" aria-pressed={m.muted === true} onClick={() => go(m.muted ? "unmute" : "mute")}>{m.muted ? "Unmute" : "Mute"}</button>
+          <input type="range" className="flex-1" min={0} max={100} aria-label="Mac volume" value={vol ?? m.volume} onChange={(e) => setVol(+e.target.value)} onPointerUp={() => vol !== null && go("volume", vol)} onKeyUp={() => vol !== null && go("volume", vol)} />
+          <span className="w-8 tabular-nums">{vol ?? m.volume}</span>
+        </div>
+      )}
+      {(m.apps.length > 0 || m.shortcuts.length > 0) && (
+        <div className="flex flex-wrap gap-2">
+          {m.apps.map((a) => <button key={"a" + a} className="btn" onClick={() => go("open", a)}>Open {a}</button>)}
+          {m.shortcuts.map((x) => <button key={"s" + x} className="btn" onClick={() => go("shortcut", x)}>{x}</button>)}
+        </div>
+      )}
+      {send.isError && <p role="alert" className="text-sm text-bad">{send.error.message}</p>}
+    </section>
   );
 }
 
@@ -565,7 +605,7 @@ function StudioHost({ hosts }: { hosts: HomelabData["hosts"] }) {
 }
 
 const blank = (type: string): Action =>
-  type === "url" ? { type, url: "https://" } : type === "module" ? { type, module: "dashboard" } : type === "spotify-device" ? { type, deviceName: "" } : type === "announce" ? { type, message: "" } : type === "spotify-play" ? { type, uri: "spotify:playlist:" } : type === "obs-scene" ? { type, scene: "" } : type === "obs-record" ? { type, on: true } : type === "scene" ? { type, steps: [] } : { type: "none" };
+  type === "url" ? { type, url: "https://" } : type === "module" ? { type, module: "dashboard" } : type === "spotify-device" ? { type, deviceName: "" } : type === "announce" ? { type, message: "" } : type === "spotify-play" ? { type, uri: "spotify:playlist:" } : type === "obs-scene" ? { type, scene: "" } : type === "obs-record" ? { type, on: true } : type === "mac" ? { type, command: "playpause" } : type === "scene" ? { type, steps: [] } : { type: "none" };
 
 function ActionEditor({ a, set, scene }: { a: Action; set: (a: Action) => void; scene: boolean }) {
   return (
@@ -579,6 +619,7 @@ function ActionEditor({ a, set, scene }: { a: Action; set: (a: Action) => void; 
         <option value="spotify-play">Play Spotify item</option>
         <option value="obs-scene">OBS: switch scene</option>
         <option value="obs-record">OBS: start/stop recording</option>
+        <option value="mac">Mac: control</option>
         {scene && <option value="scene">Scene (several steps)</option>}
       </select>
       {a.type === "url" && <input className="input" aria-label="URL" value={a.url} onChange={(e) => set({ ...a, url: e.target.value })} />}
@@ -595,6 +636,16 @@ function ActionEditor({ a, set, scene }: { a: Action; set: (a: Action) => void; 
           <option value="start">Start recording</option>
           <option value="stop">Stop recording</option>
         </select>
+      )}
+      {a.type === "mac" && (
+        <div className="flex gap-2">
+          <select className="input" aria-label="Mac command" value={a.command} onChange={(e) => set({ type: "mac", command: e.target.value as MacCommand })}>
+            {MAC_COMMANDS.map((c) => <option key={c}>{c}</option>)}
+          </select>
+          {(a.command === "volume" || a.command === "open" || a.command === "shortcut") && (
+            <input className="input" aria-label={a.command === "volume" ? "Volume 0-100" : "Name"} placeholder={a.command === "volume" ? "0-100" : "Name (must be allowlisted on the Mac)"} type={a.command === "volume" ? "number" : "text"} min={0} max={100} maxLength={100} value={a.arg ?? ""} onChange={(e) => set({ ...a, arg: e.target.value })} />
+          )}
+        </div>
       )}
       {a.type === "announce" && <input className="input" aria-label="Announcement message" placeholder="Message" maxLength={300} value={a.message} onChange={(e) => set({ ...a, message: e.target.value })} />}
       {a.type === "scene" && (

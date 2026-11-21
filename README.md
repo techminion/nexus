@@ -37,6 +37,9 @@ Interactive version: [docs/architecture.html](docs/architecture.html) (open it i
 | `STUDIO_CAMERAS` | no | Optional `Name=path` list: display names, and tiles kept visible while offline, e.g. `DJI Action 2=cam/dji`. Other cameras are discovered from MediaMTX. Unquoted (podman env-file). |
 | `OBS_URL` | no | obs-websocket on crashmetheus, e.g. `ws://192.168.31.247:4455`. Set up with `deploy/studio/obs-setup.sh`. |
 | `OBS_PASSWORD` | with OBS_URL | From `~/.config/nexus-studio/obs.pass` on crashmetheus. Never returned by the API. |
+| `MAC_HOST` | for Mac | Hostname or IPv4 of the Mac companion, e.g. `macbook.lan`. See "Mac companion". |
+| `MAC_USER` | for Mac | The Mac account the key logs in as. |
+| `MAC_KEY_DIR` | no | Dir with `id_ed25519` and `known_hosts` for the Mac, default `/etc/nexus/mac`. |
 | `PORT` | no | default 3000 |
 | `NEXUS_DATA_DIR` | no | SQLite location, default `./data` (`/data` in the image) |
 
@@ -72,6 +75,15 @@ Then: onboard in the HA UI, add the built-in Alexa Devices integration (log in t
 create a long-lived token (Profile → Security), and set in `.env`:
 `HA_URL=http://homeassistant:8123`, `HA_TOKEN`, `HA_ANNOUNCE_ENTITY` (e.g.
 `notify.<echo>_announce`) and optionally `HA_SENSORS`.
+
+## Mac companion
+
+Volume, media keys, display sleep (set "Require password immediately" to make it a lock), and allowlisted apps/Shortcuts on a Mac, over ssh with a key that is forced to run `nexus-mac.sh`.
+
+1. On the Mac, turn on Remote Login (System Settings > General > Sharing).
+2. Copy `deploy/mac/install.sh` and `deploy/mac/nexus-mac.sh` to the Mac and run `bash install.sh '<contents of /etc/nexus/mac/id_ed25519.pub on the Pi>'`.
+3. List allowed apps and Shortcuts, one per line, in `~/.config/nexus-mac/apps` and `~/.config/nexus-mac/shortcuts`.
+4. macOS asks once to let sshd-keygen-wrapper/osascript control Spotify/Music (Automation): allow it.
 
 ## Studio: adding a camera
 

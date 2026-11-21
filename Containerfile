@@ -13,6 +13,8 @@ RUN --mount=type=cache,id=nexus-corepack,target=/cache/corepack pnpm build
 RUN --mount=type=cache,id=nexus-corepack,target=/cache/corepack --mount=type=cache,id=nexus-pnpm-store,target=/cache/pnpm-store --mount=type=cache,id=nexus-pnpm-meta,target=/cache/pnpm-meta pnpm --filter @nexus/server deploy --prod --legacy --prefer-offline /out
 
 FROM node:22-bookworm-slim
+# ssh client for the Mac companion (deploy/mac).
+RUN apt-get update && apt-get install -y --no-install-recommends openssh-client && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production NEXUS_DATA_DIR=/data PORT=3000 WEB_DIST=/app/web
 COPY --from=build /out/node_modules node_modules

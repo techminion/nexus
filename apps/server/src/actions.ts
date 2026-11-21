@@ -1,6 +1,13 @@
 export const MODULES = ["dashboard", "music", "devices", "timer", "homelab", "studio", "settings"] as const;
 export const TRACK_RE = /^spotify:track:[A-Za-z0-9]{22}$/;
 export const CONTEXT_RE = /^spotify:(playlist|album|artist|show):[A-Za-z0-9]{22}$/;
+export const MAC_COMMANDS = ["playpause", "next", "previous", "volume", "mute", "unmute", "lock", "open", "shortcut"] as const;
+/** Arg rules shared by run() and validateAction: volume 0-100, open/shortcut a short plain string, others none. Returns an error or null. */
+export const macArgError = (command: string, arg: unknown): string | null =>
+  command === "volume" ? (typeof arg === "number" || (typeof arg === "string" && /^\d{1,3}$/.test(arg))) && Number.isInteger(+arg) && +arg >= 0 && +arg <= 100 ? null : "volume must be 0-100"
+  : command === "open" || command === "shortcut" ? (typeof arg === "string" && arg.length >= 1 && arg.length <= 100 && !/[\x00-\x1f\x7f]/.test(arg) ? null : `${command} needs a name (1-100 characters)`)
+  : arg === undefined ? null : `${command} takes no argument`;
+
 export type Action =
   | { type: "url"; url: string }
   | { type: "module"; module: (typeof MODULES)[number] }
@@ -9,6 +16,7 @@ export type Action =
   | { type: "spotify-play"; uri: string; label?: string }
   | { type: "obs-scene"; scene: string }
   | { type: "obs-record"; on: boolean }
+  | { type: "mac"; command: (typeof MAC_COMMANDS)[number]; arg?: string }
   | { type: "scene"; steps: Action[] }
   | { type: "none" };
 export interface Shortcut { label: string; action: Action }
@@ -65,6 +73,8 @@ export function validateAction(a: unknown, nested = false): string | null {
       return keys === "scene,type" && str(a.scene, 100) ? null : "invalid OBS scene";
     case "obs-record":
       return keys === "on,type" && typeof a.on === "boolean" ? null : "invalid OBS record action";
+    case "mac":
+      return (keys === "command,type" || keys === "arg,command,type") && (MAC_COMMANDS as readonly unknown[]).includes(a.command) ? macArgError(a.command as string, a.arg) && "invalid Mac action" : "invalid Mac action";
     case "scene": {
       if (nested) return "scenes cannot be nested";
       if (keys !== "steps,type" || !Array.isArray(a.steps) || a.steps.length > 10) return "scene needs at most 10 steps";

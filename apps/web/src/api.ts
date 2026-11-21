@@ -19,6 +19,8 @@ export async function api<T = unknown>(method: string, path: string, body?: unkn
 }
 
 export type Module = "dashboard" | "music" | "devices" | "timer" | "homelab" | "studio" | "settings";
+export const MAC_COMMANDS = ["playpause", "next", "previous", "volume", "mute", "unmute", "lock", "open", "shortcut"] as const;
+export type MacCommand = (typeof MAC_COMMANDS)[number];
 export type Action =
   | { type: "url"; url: string }
   | { type: "module"; module: Module }
@@ -27,6 +29,7 @@ export type Action =
   | { type: "spotify-play"; uri: string; label?: string }
   | { type: "obs-scene"; scene: string }
   | { type: "obs-record"; on: boolean }
+  | { type: "mac"; command: MacCommand; arg?: string }
   | { type: "scene"; steps: Action[] }
   | { type: "none" };
 export interface Shortcut { label: string; action: Action }
@@ -85,6 +88,13 @@ export type ObsStatus =
   | { configured: true; reachable: true; scenes: string[]; scene: string | null; recording: boolean; recordTime: string | null; streaming: boolean };
 export const useObs = () =>
   useQuery({ queryKey: ["obs"], queryFn: () => api<ObsStatus>("GET", "/api/obs"), refetchInterval: () => (document.hidden ? false : 3000) });
+export type MacStatus =
+  | { configured: false }
+  | { configured: true; reachable: false }
+  | { configured: true; reachable: true; volume: number | null; muted: boolean | null; battery: number | null; ac: boolean; uptime: number | null; apps: string[]; shortcuts: string[] };
+export const useMac = () =>
+  useQuery({ queryKey: ["mac"], queryFn: () => api<MacStatus>("GET", "/api/mac"), refetchInterval: () => (document.hidden ? false : 5000) });
+export const macCommand = (command: MacCommand, arg?: string | number) => api("POST", "/api/mac", { command, ...(arg === undefined ? {} : { arg: String(arg) }) });
 export const useStudio = () =>
   useQuery({ queryKey: ["studio"], queryFn: () => api<StudioStatus>("GET", "/api/studio"), refetchInterval: () => (document.hidden ? false : 5000) });
 
