@@ -1,0 +1,7 @@
+[Unit]
+Description=Snapshot all users' containers for the Nexus VPS companion
+
+[Service]
+Type=oneshot
+TimeoutStartSec=90
+ExecStart=/usr/local/libexec/nexus-vps-snapshot.sh

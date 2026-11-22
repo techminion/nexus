@@ -88,6 +88,9 @@ Set in `/etc/nexus/nexus.env` on the Pi (an env file: no quotes, one `NAME=value
 | `MAC_HOST` | for Mac | Hostname or IPv4 of the Mac companion, e.g. `macbook.lan`. See "Mac companion". |
 | `MAC_USER` | for Mac | The Mac account the key logs in as. |
 | `MAC_KEY_DIR` | no | Dir with `id_ed25519` and `known_hosts` for the Mac, default `/etc/nexus/mac`. |
+| `VPS_HOST` | for VPS | Hostname of the VPS companion, e.g. `vps.example.com`. See "VPS companion". |
+| `VPS_USER` | for VPS | The VPS account the key logs in as (`nexusmon`). |
+| `VPS_KEY_DIR` | no | Dir with `id_ed25519` and `known_hosts` for the VPS, default `/etc/nexus/vps`. |
 | `PORT` | no | default 3000 |
 | `NEXUS_DATA_DIR` | no | SQLite location, default `./data` (`/data` in the image) |
 
@@ -148,6 +151,18 @@ Volume, media keys, display sleep (set "Require password immediately" to make it
    and pin the Mac's host key: `ssh-keyscan -t ed25519 <mac> | sudo tee /etc/nexus/mac/known_hosts`.
 3. List allowed apps and Shortcuts, one per line, in `~/.config/nexus-mac/apps` and `~/.config/nexus-mac/shortcuts`.
 4. macOS asks once to let sshd-keygen-wrapper/osascript control Spotify/Music (Automation): allow it.
+
+## VPS companion
+
+CPU, memory, disk and every user's containers on a Linux VPS, on the Homelab page. Nexus logs in as a dedicated
+`nexusmon` account (locked password, no sudo) whose ssh key is forced to `nexus-vps.sh`, which only prints status.
+Rootless containers are only visible to their own user, so a root timer snapshots all lingering users' containers
+every 30 s into a file only `nexusmon` can read.
+
+1. On the Pi, once as root: `sudo ssh-keygen -t ed25519 -N '' -C nexus-pi -f /etc/nexus/vps/id_ed25519`, and pin
+   the VPS host key: `echo "<vps> $(ssh <you>@<vps> cat /etc/ssh/ssh_host_ed25519_key.pub)" | sudo tee /etc/nexus/vps/known_hosts`.
+2. Copy `deploy/vps/` to the VPS and run `sudo bash install.sh '<contents of /etc/nexus/vps/id_ed25519.pub>'`.
+3. Set `VPS_HOST` and `VPS_USER=nexusmon` in `/etc/nexus/nexus.env` and restart Nexus.
 
 ## Studio: adding a camera
 

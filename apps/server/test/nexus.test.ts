@@ -2,6 +2,7 @@ import { createHomeAssistant } from "../src/homeassistant.ts";
 import { cameraName, parseCameras } from "../src/studio.ts";
 import { parseHosts } from "../src/homelab.ts";
 import { createMac } from "../src/mac.ts";
+import { createVps, parseVps } from "../src/vps.ts";
 import { createObs } from "../src/obs.ts";
 import { createSpotify } from "../src/spotify.ts";
 import { openKv } from "../src/db.ts";
@@ -486,6 +487,27 @@ test("mac actions, status and route", async () => {
   const cookie = String(login.headers["set-cookie"]).split(";")[0];
   assert.deepEqual((await app.inject({ method: "GET", url: "/api/mac", headers: { cookie } })).json(), { configured: false });
   assert.equal((await app.inject({ method: "POST", url: "/api/mac", headers: { cookie }, payload: { command: "reboot" } })).statusCode, 400);
+  await app.close();
+});
+
+test("vps companion output, status and route", async () => {
+  // Bare or short records (cpu, uptime, mem, snapshot) are ignored; a second snapshot line cannot reset the list.
+  const v = parseVps("cpu\nuptime\nmem\t1\ncpu\t12.34\nmem\t2048000\t1024000\ndisk\t10000000\t2500000\nload\t0.5\t1\tx\nuptime\t99.9\njunk\nsnapshot\t12\nc\talice\tdb\tpostgres:17\trunning\tUp 4 weeks (healthy)\nc\tshort\nsnapshot\nsnapshot\t1\ne\tbob\n");
+  assert.deepEqual(v, {
+    cpuPercent: 12.3, mem: { totalMb: 2000, usedMb: 1000 }, disk: { totalGb: 10.2, usedGb: 2.6 }, load: null, uptimeSec: 99, snapshotAge: 12,
+    containers: [{ owner: "alice", name: "db", image: "postgres:17", state: "running", status: "Up 4 weeks (healthy)" }], incomplete: ["bob"],
+  });
+  // No snapshot line: containers unknown (null), not "none".
+  assert.equal(parseVps("cpu\t1\n").containers, null);
+  assert.deepEqual(await createVps({}).status(), { configured: false });
+  const warned: string[] = [];
+  createVps({ host: "vps", user: "bad user" }, (m) => warned.push(m));
+  assert.equal(warned.length, 1);
+  const app = await buildApp({ password: "pw", secret: "s".repeat(32), dataDir: ":memory:" });
+  assert.equal((await app.inject({ method: "GET", url: "/api/vps" })).statusCode, 401);
+  const login = await app.inject({ method: "POST", url: "/api/login", payload: { password: "pw" } });
+  const cookie = String(login.headers["set-cookie"]).split(";")[0];
+  assert.deepEqual((await app.inject({ method: "GET", url: "/api/vps", headers: { cookie } })).json(), { configured: false });
   await app.close();
 });
 

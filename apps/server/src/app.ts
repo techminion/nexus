@@ -10,6 +10,7 @@ import { createHomelab, type HomelabCfg } from "./homelab.ts";
 import { createHomeAssistant, type HaCfg } from "./homeassistant.ts";
 import { createStudio, type StudioCfg } from "./studio.ts";
 import { createMac, MAC_COMMANDS, type MacCfg } from "./mac.ts";
+import { createVps, type VpsCfg } from "./vps.ts";
 import { createObs, type ObsCfg } from "./obs.ts";
 import { CONTEXT_RE, DEFAULT_SETTINGS, TRACK_RE, validateSettings, voiceShortcut, type Action, type Settings, type Shortcut } from "./actions.ts";
 
@@ -25,6 +26,7 @@ export interface Config {
   studio?: StudioCfg;
   obs?: ObsCfg;
   mac?: MacCfg;
+  vps?: VpsCfg;
 }
 
 const sha = (s: string) => createHash("sha256").update(s).digest();
@@ -52,6 +54,7 @@ export async function buildApp(cfg: Config) {
   const studio = createStudio(cfg.studio ?? {}, warn);
   const obs = createObs(cfg.obs ?? {}, warn);
   const mac = createMac(cfg.mac ?? {}, warn);
+  const vps = createVps(cfg.vps ?? {}, warn);
   const settings = (): Settings => kv.get<Settings>("settings") ?? DEFAULT_SETTINGS;
 
   // Random session ids kept server-side so logout revokes them; sessions are tied to the current password.
@@ -164,6 +167,7 @@ export async function buildApp(cfg: Config) {
   app.get("/api/obs", async () => obs.status());
   app.post("/api/obs/scene", { schema: { body: { type: "object", required: ["scene"], additionalProperties: false, properties: { scene: { type: "string", minLength: 1, maxLength: 100 } } } } }, async (req) => (await obs.setScene((req.body as { scene: string }).scene), { ok: true }));
   app.get("/api/mac", async () => mac.status());
+  app.get("/api/vps", async () => vps.status());
   app.post("/api/mac", { schema: { body: { type: "object", required: ["command"], additionalProperties: false, properties: { command: { enum: MAC_COMMANDS }, arg: { type: "string", maxLength: 100 } } } } }, async (req) => { const b = req.body as { command: string; arg?: string }; await mac.run(b.command, b.arg); return { ok: true }; });
   app.post("/api/obs/record", { schema: { body: { type: "object", required: ["on"], additionalProperties: false, properties: { on: { type: "boolean" } } } } }, async (req) => (await obs.record((req.body as { on: boolean }).on), { ok: true }));
   app.get("/api/studio/auth", async (_req, reply) => reply.code(204).send());

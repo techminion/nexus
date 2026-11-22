@@ -16,6 +16,7 @@ const app = await buildApp({
   studio: { api: process.env.STUDIO_API, cameras: process.env.STUDIO_CAMERAS },
   obs: { url: process.env.OBS_URL, password: process.env.OBS_PASSWORD },
   mac: { host: process.env.MAC_HOST, user: process.env.MAC_USER, keyDir: process.env.MAC_KEY_DIR },
+  vps: { host: process.env.VPS_HOST, user: process.env.VPS_USER, keyDir: process.env.VPS_KEY_DIR },
   ha: { url: process.env.HA_URL, token: process.env.HA_TOKEN, sensors: process.env.HA_SENSORS, announceEntity: process.env.HA_ANNOUNCE_ENTITY, voiceEntity: process.env.HA_VOICE_ENTITY },
   // dev: ../../web/dist relative to src; prod image sets WEB_DIST
   webDist: process.env.WEB_DIST ?? fileURLToPath(new URL("../../web/dist", import.meta.url)),

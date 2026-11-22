@@ -100,6 +100,17 @@ export const useMac = () =>
   // No polling: read when the card opens and after each command (each read is an ssh login on the Mac).
   useQuery({ queryKey: ["mac"], queryFn: () => api<MacStatus>("GET", "/api/mac"), refetchOnWindowFocus: false });
 export const macCommand = (command: MacCommand, arg?: string | number) => api("POST", "/api/mac", { command, ...(arg === undefined ? {} : { arg: String(arg) }) });
+export type VpsStatus =
+  | { configured: false }
+  | { configured: true; reachable: false; error: string }
+  | {
+    configured: true; reachable: true; cpuPercent: number | null; mem: { totalMb: number; usedMb: number } | null;
+    disk: { totalGb: number; usedGb: number } | null; load: number[] | null; uptimeSec: number | null; snapshotAge: number | null;
+    containers: { owner: string; name: string; image: string; state: string; status: string }[] | null; incomplete: string[];
+  };
+// Each read is one ssh login on the VPS (the server caches 20 s), so a slow poll.
+export const useVps = () =>
+  useQuery({ queryKey: ["vps"], queryFn: () => api<VpsStatus>("GET", "/api/vps"), refetchInterval: () => (document.hidden ? false : 60_000) });
 export const useStudio = () =>
   useQuery({ queryKey: ["studio"], queryFn: () => api<StudioStatus>("GET", "/api/studio"), refetchInterval: () => (document.hidden ? false : 5000) });
 

@@ -13,6 +13,8 @@ Volume=nexus-data:/data
 Volume=/run/nexus:/run/nexus:ro
 # Mac companion ssh key + pinned host key (root-only on the host).
 Volume=/etc/nexus/mac:/etc/nexus/mac:ro
+# VPS companion ssh key + pinned host key.
+Volume=/etc/nexus/vps:/etc/nexus/vps:ro
 EnvironmentFile=/etc/nexus/nexus.env
 
 [Service]

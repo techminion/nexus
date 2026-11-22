@@ -9,7 +9,7 @@ ssh "$HOST" 'set -e
   cd ~/nexus
   # Router DNS (public fallback), not the Tailscale resolver: that one intermittently fails inside builds (EAI_AGAIN).
   sudo podman build --dns=192.168.31.1 --dns=1.1.1.1 -t localhost/nexus:latest -f Containerfile .
-  sudo install -d -m 700 /etc/nexus /etc/nexus/mac  # mac/: Mac companion key (may stay empty)
+  sudo install -d -m 700 /etc/nexus /etc/nexus/mac /etc/nexus/vps  # mac/, vps/: companion keys (may stay empty)
   sudo install -m 644 deploy/Caddyfile /etc/nexus/Caddyfile
   sudo install -m 644 deploy/nexus.network deploy/nexus.container deploy/caddy.container deploy/homeassistant.container /etc/containers/systemd/
   sudo install -m 644 deploy/nexus-snapshot.service deploy/nexus-snapshot.timer /etc/systemd/system/

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { fmtTime, useNow } from "./App";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, homelabIssues, macCommand, MAC_COMMANDS, useHa, useHomelab, useMac, useObs, useSettings, useSpotify, useStudio, type Homelab as HomelabData, type Action, type MacCommand, type Device, type Item, type Module, type PlaylistInfo, type RecentTrack, type Playback, type Settings, type Shortcut, type SpotifyState } from "./api";
+import { api, homelabIssues, macCommand, MAC_COMMANDS, useHa, useHomelab, useVps, useMac, useObs, useSettings, useSpotify, useStudio, type Homelab as HomelabData, type Action, type MacCommand, type Device, type Item, type Module, type PlaylistInfo, type RecentTrack, type Playback, type Settings, type Shortcut, type SpotifyState } from "./api";
 
 export const Icon = ({ d, stroke }: { d: string; stroke?: boolean }) => (
   <svg viewBox="0 0 24 24" className="h-6 w-6" fill={stroke ? "none" : "currentColor"} stroke={stroke ? "currentColor" : "none"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -591,8 +591,38 @@ export function Homelab() {
           </div>
         ))}
       </section>
+      <VpsCard />
       <StudioHost hosts={d.hosts} />
     </div>
+  );
+}
+
+/** The VPS over its read-only ssh companion: load, memory, disk and every user's containers. */
+function VpsCard() {
+  const v = useVps().data;
+  if (!v?.configured) return null;
+  if (!v.reachable) return <section className="card flex flex-col gap-2" aria-label="VPS"><h2 className="text-lg font-semibold">VPS</h2><p role="status" className="text-bad">Unreachable: {v.error}</p></section>;
+  const running = v.containers?.filter((c) => c.state === "running").length;
+  return (
+    <section className="card flex flex-col gap-3" aria-label="VPS">
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="text-lg font-semibold">VPS</h2>
+        <span className="text-sm text-dim">{v.uptimeSec === null ? "uptime n/a" : `up ${uptime(v.uptimeSec)}`}{v.load ? ` - load ${v.load.join(" ")}` : ""}</span>
+      </div>
+      <Bar label="CPU" value={v.cpuPercent} text={`${v.cpuPercent}%`} />
+      <Bar label="RAM" value={v.mem && (v.mem.usedMb / v.mem.totalMb) * 100} text={v.mem ? `${v.mem.usedMb} / ${v.mem.totalMb} MB` : ""} />
+      <Bar label="Disk" value={v.disk && (v.disk.usedGb / v.disk.totalGb) * 100} text={v.disk ? `${v.disk.usedGb} / ${v.disk.totalGb} GB` : ""} />
+      <h3 className="font-semibold">Containers{v.containers && <span className="ml-2 text-sm font-normal text-dim">{running}/{v.containers.length} running · snapshot {v.snapshotAge}s old</span>}</h3>
+      {v.incomplete.length > 0 && <p role="status" className="text-bad">Incomplete: could not list containers of {v.incomplete.join(", ")}</p>}
+      {v.containers === null ? <p role="status" className="text-dim">No container snapshot (run deploy/vps/install.sh).</p>
+        : v.containers.map((c) => (
+          <div key={`${c.owner}/${c.name}`} className="flex items-center gap-2">
+            <span className={`h-2.5 w-2.5 shrink-0 rounded-full border-2 border-line ${c.state === "running" ? "bg-accent" : "bg-bad"}`} />
+            <span className="truncate">{c.name} <span className="text-sm text-dim">{c.owner}</span></span>
+            <span className="ml-auto truncate text-sm text-dim">{c.status}</span>
+          </div>
+        ))}
+    </section>
   );
 }
 
