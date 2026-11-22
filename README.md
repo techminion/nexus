@@ -22,13 +22,15 @@ Every integration is optional: leave its variables unset and its page or card st
 
 ## Requirements
 
-- Raspberry Pi 4 or 5 (64-bit Raspberry Pi OS / Debian 12+) with Podman 4.4+ (Quadlet). The image is built on the Pi.
+- Raspberry Pi 4 or 5 with a 64-bit OS that has Podman 4.4+ (Quadlet): Raspberry Pi OS / Debian 13 "Trixie" or
+  Ubuntu 24.04+. Debian 12 ships Podman 4.3, too old. The image is built on the Pi.
 - A browser to show it: any tablet or phone. The author uses an Android tablet with Fully Kiosk Browser.
 - For development: Node 22 and pnpm (`corepack enable`).
 - Optional: Spotify Premium, an Echo with Home Assistant, a Linux PC for the Studio (MediaMTX, OBS), a Mac.
 
-The host names in this README and in `deploy/` are the author's: **epimetheus** is the Pi (192.168.31.128) and
-**crashmetheus** the Linux desktop that runs the Studio (192.168.31.247). Replace them with yours (see Install).
+The host names in this README are the author's: **epimetheus** is the Pi (192.168.31.128) and **crashmetheus** the
+Linux desktop that runs the Studio (192.168.31.247). Your own names and addresses go in `deploy/site.env`, which
+`./install.sh` writes.
 
 ## Architecture
 
@@ -49,20 +51,23 @@ Interactive version: [docs/architecture.html](docs/architecture.html) (open it i
 
 ## Install on a Pi
 
-1. **Adapt the deploy files to your network.** They name the author's hosts and LAN:
-   - `deploy/Caddyfile`: the Pi's IP and host names (site address and `default_sni`), and the Studio host's IP in
-     `reverse_proxy`.
-   - `deploy/deploy.sh`: the DNS servers passed to `podman build` (`--dns=`) and `PUBLIC_URL` in the generated env file.
-   - `deploy/caddy.container` publishes ports 80, 443 and 8443 (Home Assistant).
-2. **Deploy** from your machine: `HOST=<user>@<pi> deploy/deploy.sh`. It syncs the repo to `~/nexus` on the Pi, builds
-   the image there, installs the Quadlet units and restarts them. Re-run it after every change.
-3. The first run creates `/etc/nexus/nexus.env` (mode 600) with a random `NEXUS_PASSWORD` and `SESSION_SECRET`. Read
-   the password with `sudo grep NEXUS_PASSWORD /etc/nexus/nexus.env`, add the variables below for the integrations you
-   want, then `sudo systemctl restart nexus`.
-4. **Trust Caddy's certificate.** Caddy serves HTTPS with its own internal CA, so browsers warn until you install its
-   root on each client: copy it out with `sudo podman cp nexus-caddy:/data/caddy/pki/authorities/local/root.crt .` and
-   import it as a trusted CA. Or switch `tls internal` to a real certificate.
-5. Open `https://<pi>/` and log in.
+Step by step, including certificates, integrations, updating and troubleshooting: **[installation_guide.md](installation_guide.md)**.
+
+In short, from your computer:
+
+```sh
+git clone https://github.com/techminion/nexus.git && cd nexus
+./install.sh        # asks for the Pi's ssh login and names, checks the Pi, writes deploy/site.env, deploys
+```
+
+`./install.sh` checks the Pi (64-bit, Podman 4.4+, passwordless sudo), saves your settings in `deploy/site.env`
+(gitignored) and runs `deploy/deploy.sh`, which syncs the repo to `~/nexus` on the Pi, builds the image there,
+installs the Quadlet units and restarts them. After that, update with `git pull && deploy/deploy.sh`.
+`deploy/Caddyfile` and `deploy/studio/mediamtx.yml` are templates filled in from `site.env`.
+
+The first deploy creates `/etc/nexus/nexus.env` (mode 600) with a random `NEXUS_PASSWORD` and `SESSION_SECRET`.
+Read the password with `sudo grep NEXUS_PASSWORD /etc/nexus/nexus.env`, add the variables below for the
+integrations you want, then `sudo systemctl restart nexus`.
 
 ## Environment
 
@@ -167,7 +172,8 @@ every 30 s into a file only `nexusmon` can read.
 ## Studio: adding a camera
 
 Every Studio tile is a MediaMTX path on crashmetheus. Nexus lists whatever MediaMTX has, so most cameras need no
-Nexus change. Re-running `deploy/studio/install.sh` restarts MediaMTX, which briefly cuts any preview in progress.
+Nexus change. `deploy/studio/install.sh` reads the Pi's address and its own from `deploy/site.env` (copy that file
+from the computer you ran `./install.sh` on). Re-running it restarts MediaMTX, which briefly cuts any preview in progress.
 
 - **USB webcam on crashmetheus:** plug it in and re-run `deploy/studio/install.sh`. Each webcam gets a path named
   after the device (e.g. `c270-hd-webcam`) that only runs while someone watches.

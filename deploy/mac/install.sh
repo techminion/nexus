@@ -1,10 +1,11 @@
 #!/bin/bash
-# Run on the Mac: bash install.sh '<Nexus Pi public key>' [pi-ip]
+# Run on the Mac: bash install.sh '<Nexus Pi public key>' <pi-ip>
 # Installs nexus-mac.sh and pins the Pi's key to it: that key can run only the companion's verbs,
 # only from the Pi, with no shell, pty or forwarding. Re-running replaces the previous entry.
 set -eu
-key=${1:-}; from=${2:-192.168.31.128}
-case $key in "ssh-ed25519 "*" nexus-pi") ;; *) echo "usage: install.sh '<ssh-ed25519 ... nexus-pi>' [pi-ip]" >&2; exit 2 ;; esac
+key=${1:-}; from=${2:-}
+case $key in "ssh-ed25519 "*" nexus-pi") ;; *) echo "usage: install.sh '<ssh-ed25519 ... nexus-pi>' <pi-ip>" >&2; exit 2 ;; esac
+case $from in *[!0-9.]*|"") echo "usage: install.sh '<ssh-ed25519 ... nexus-pi>' <pi-ip>  (the Pi's IPv4 address)" >&2; exit 2 ;; esac
 dir=$(cd "$(dirname "$0")" && pwd)
 mkdir -p ~/.local/bin ~/.config/nexus-mac ~/.ssh
 chmod 700 ~/.ssh

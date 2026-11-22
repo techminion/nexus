@@ -21,7 +21,7 @@ authInternalUsers:
   # Nexus on the Pi: status checks, and viewing through its login-protected /studio/ proxy.
   # Nobody else on the LAN can watch.
   - user: any
-    ips: ["192.168.31.128"]
+    ips: ["__PI_IP__"]
     permissions:
       - action: read
       - action: api
@@ -47,12 +47,12 @@ moq: false
 webrtc: true
 webrtcAddress: :8889
 webrtcLocalUDPAddress: :8189
-webrtcAllowOrigins: ["https://epimetheus.lan", "https://192.168.31.128"]
+webrtcAllowOrigins: [__PI_ORIGINS__]
 # No trusted proxies on purpose: access is granted by the Pi's own IP (its proxy has already checked the
 # Nexus login). Trusting X-Forwarded-For would judge the viewer's IP instead, which is not allowed.
 # Advertise only the LAN address (not Podman/Tailscale interfaces) to viewers.
 webrtcIPsFromInterfaces: false
-webrtcAdditionalHosts: ["192.168.31.247"]
+webrtcAdditionalHosts: ["__STUDIO_IP__"]
 
 paths:
   # USB webcams found by install.sh (one on-demand path each; re-run install.sh after plugging one in).

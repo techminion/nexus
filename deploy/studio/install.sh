@@ -2,6 +2,10 @@
 # Install or update the Nexus Studio camera server on this machine (crashmetheus). No root needed.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
+# The Pi's address and this machine's (PI_IP, PI_NAMES, STUDIO_IP) come from deploy/site.env, as on the Pi side.
+. "$here/../site.sh"
+site_load
+[ -n "$STUDIO_IP" ] || { echo "Set STUDIO_IP (this machine's LAN IPv4) in deploy/site.env first" >&2; exit 1; }
 conf=~/.config/nexus-studio
 install -d -m 700 "$conf"
 install -d ~/.local/opt/mediamtx ~/.config/systemd/user
@@ -73,6 +77,7 @@ fi
 # write a 0600 temp file and rename, so a failure never leaves a truncated config behind.
 tpl=$(<"$here/mediamtx.yml")
 tpl=${tpl//__WEBCAMS__/${webcams%$'\n'}}
+tpl=${tpl//__PI_IP__/$PI_IP}; tpl=${tpl//__PI_ORIGINS__/$PI_ORIGINS}; tpl=${tpl//__STUDIO_IP__/$STUDIO_IP}
 out=$(mktemp "$conf/.mediamtx.yml.XXXXXX")
 printf '%s\n' "${tpl//__PUBLISH_PASS__/$pass}" > "$out"
 mv -f "$out" "$conf/mediamtx.yml"

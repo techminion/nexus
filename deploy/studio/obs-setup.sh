@@ -54,4 +54,4 @@ Exec=flatpak run $app --disable-shutdown-check
 X-GNOME-Autostart-enabled=true
 EOF
 echo "OBS websocket: ws://$(hostname -I | awk '{print $1}'):4455 (restart OBS if it was already open)"
-echo "Firewall (once, needs sudo), Pi only: sudo firewall-cmd --permanent --add-rich-rule='rule family=ipv4 source address=192.168.31.128 port port=4455 protocol=tcp accept' && sudo firewall-cmd --reload"
+echo "Firewall (once, needs sudo), Pi only: sudo firewall-cmd --permanent --add-rich-rule='rule family=ipv4 source address=<Pi IP> port port=4455 protocol=tcp accept' && sudo firewall-cmd --reload"
