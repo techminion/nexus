@@ -736,6 +736,25 @@ function SettingsForm({ saved }: { saved: Settings }) {
   );
 }
 
+/** Phone alerts (ntfy): whether they are set up, and a test button. */
+function AlertsCard() {
+  const q = useQuery({ queryKey: ["alerts"], queryFn: () => api<{ configured: boolean }>("GET", "/api/alerts") });
+  const t = useMutation({ mutationFn: () => api("POST", "/api/alerts/test") });
+  return (
+    <section className="card flex flex-col gap-3">
+      <h2 className="text-lg font-semibold">Alerts</h2>
+      {!q.data ? null : !q.data.configured
+        ? <p className="text-dim">Not set up. Set NTFY_URL (and NTFY_TOKEN for a protected topic) on the server.</p>
+        : <>
+          <p className="text-dim">Hosts, containers, the VPS and Home Assistant are checked every 2 minutes; a problem is sent to your phone once it lasts two checks, and again when it clears.</p>
+          <button className="btn" disabled={t.isPending} onClick={() => t.mutate()}>Send test alert</button>
+          {t.isSuccess && <p role="status" className="text-dim">Sent. Check your phone.</p>}
+          {t.isError && <p role="alert" className="text-bad">{t.error.message}</p>}
+        </>}
+    </section>
+  );
+}
+
 export function SettingsScreen({ onClock }: { onClock: () => void }) {
   const qc = useQueryClient();
   const settings = useSettings();
@@ -774,6 +793,7 @@ export function SettingsScreen({ onClock }: { onClock: () => void }) {
         {s?.connected ? <button className="btn" onClick={() => disc.mutate()}>Disconnect</button> : <a className="btn btn-accent" href="/api/spotify/login">Connect Spotify</a>}
         {new URLSearchParams(location.search).get("spotify") === "failed" && <p role="alert" className="text-bad">Spotify authorization failed.</p>}
       </section>
+      <AlertsCard />
       {settings.data && <SettingsForm saved={settings.data} />}
       <button className="btn" onClick={logout}>Log out</button>
     </div>

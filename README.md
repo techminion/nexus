@@ -96,6 +96,8 @@ Set in `/etc/nexus/nexus.env` on the Pi (an env file: no quotes, one `NAME=value
 | `VPS_HOST` | for VPS | Hostname of the VPS companion, e.g. `vps.example.com`. See "VPS companion". |
 | `VPS_USER` | for VPS | The VPS account the key logs in as (`nexusmon`). |
 | `VPS_KEY_DIR` | no | Dir with `id_ed25519` and `known_hosts` for the VPS, default `/etc/nexus/vps`. |
+| `NTFY_URL` | for alerts | ntfy topic URL for phone alerts, e.g. `https://ntfy.sh/<long-random-topic>`. See "Alerts". |
+| `NTFY_TOKEN` | no | ntfy access token, for a topic that requires login (secret, never returned by the API). |
 | `PORT` | no | default 3000 |
 | `NEXUS_DATA_DIR` | no | SQLite location, default `./data` (`/data` in the image) |
 
@@ -156,6 +158,14 @@ Volume, media keys, display sleep (set "Require password immediately" to make it
    and pin the Mac's host key: `ssh-keyscan -t ed25519 <mac> | sudo tee /etc/nexus/mac/known_hosts`.
 3. List allowed apps and Shortcuts, one per line, in `~/.config/nexus-mac/apps` and `~/.config/nexus-mac/shortcuts`.
 4. macOS asks once to let sshd-keygen-wrapper/osascript control Spotify/Music (Automation): allow it.
+
+## Alerts
+
+Nexus checks the Pi's containers and temperature, `NEXUS_HOSTS`, the VPS and Home Assistant (including sensors that
+went `unavailable`) every 2 minutes. A problem that lasts two checks is pushed to your phone through
+[ntfy](https://ntfy.sh), once, and again when it clears; restarts never resend it. Install the ntfy app, subscribe
+to a topic, set `NTFY_URL` to it (on the public ntfy.sh server the topic name is the only secret, so make it long
+and random, or use your own server with `NTFY_TOKEN`), restart, and use Settings, Send test alert.
 
 ## VPS companion
 

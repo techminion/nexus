@@ -11,6 +11,7 @@ import { createHomeAssistant, type HaCfg } from "./homeassistant.ts";
 import { createStudio, type StudioCfg } from "./studio.ts";
 import { createMac, MAC_COMMANDS, type MacCfg } from "./mac.ts";
 import { createVps, type VpsCfg } from "./vps.ts";
+import { createAlerts, issuesFrom, type AlertsCfg } from "./alerts.ts";
 import { createObs, type ObsCfg } from "./obs.ts";
 import { CONTEXT_RE, DEFAULT_SETTINGS, TRACK_RE, validateSettings, voiceShortcut, type Action, type Settings, type Shortcut } from "./actions.ts";
 
@@ -27,6 +28,7 @@ export interface Config {
   obs?: ObsCfg;
   mac?: MacCfg;
   vps?: VpsCfg;
+  alerts?: AlertsCfg;
 }
 
 const sha = (s: string) => createHash("sha256").update(s).digest();
@@ -55,6 +57,12 @@ export async function buildApp(cfg: Config) {
   const obs = createObs(cfg.obs ?? {}, warn);
   const mac = createMac(cfg.mac ?? {}, warn);
   const vps = createVps(cfg.vps ?? {}, warn);
+  const soft = <T>(p: Promise<unknown>) => (p as Promise<T>).catch(() => null);
+  const alerts = createAlerts(cfg.alerts ?? {}, kv, async () =>
+    issuesFrom(...(await Promise.all([soft<never>(homelab.get()), soft<never>(vps.status()), soft<never>(ha.status())]))), warn);
+  // Every 2 min; a problem is alerted after two checks in a row, so within about 4 minutes.
+  const alertTimer = alerts.configured ? setInterval(() => void alerts.tick().catch((e) => warn(`alerts: ${e}`)), 120_000) : undefined;
+  alertTimer?.unref();
   const settings = (): Settings => kv.get<Settings>("settings") ?? DEFAULT_SETTINGS;
 
   // Random session ids kept server-side so logout revokes them; sessions are tied to the current password.
@@ -158,7 +166,7 @@ export async function buildApp(cfg: Config) {
       (e) => app.log.warn(`voice shortcut ${sc.label}: ${e instanceof Error ? e.message : e}`),
     );
   });
-  app.addHook("onClose", async () => stopVoice());
+  app.addHook("onClose", async () => { stopVoice(); clearInterval(alertTimer); await alerts.idle(); });
 
   app.get("/api/homelab", async () => homelab.get());
   app.get("/api/ha/status", async () => ha.status());
@@ -168,6 +176,8 @@ export async function buildApp(cfg: Config) {
   app.post("/api/obs/scene", { schema: { body: { type: "object", required: ["scene"], additionalProperties: false, properties: { scene: { type: "string", minLength: 1, maxLength: 100 } } } } }, async (req) => (await obs.setScene((req.body as { scene: string }).scene), { ok: true }));
   app.get("/api/mac", async () => mac.status());
   app.get("/api/vps", async () => vps.status());
+  app.get("/api/alerts", async () => ({ configured: alerts.configured }));
+  app.post("/api/alerts/test", async () => { await alerts.test(); return { ok: true }; });
   app.post("/api/mac", { schema: { body: { type: "object", required: ["command"], additionalProperties: false, properties: { command: { enum: MAC_COMMANDS }, arg: { type: "string", maxLength: 100 } } } } }, async (req) => { const b = req.body as { command: string; arg?: string }; await mac.run(b.command, b.arg); return { ok: true }; });
   app.post("/api/obs/record", { schema: { body: { type: "object", required: ["on"], additionalProperties: false, properties: { on: { type: "boolean" } } } } }, async (req) => (await obs.record((req.body as { on: boolean }).on), { ok: true }));
   app.get("/api/studio/auth", async (_req, reply) => reply.code(204).send());

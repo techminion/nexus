@@ -3,6 +3,7 @@ import { cameraName, parseCameras } from "../src/studio.ts";
 import { parseHosts } from "../src/homelab.ts";
 import { createMac } from "../src/mac.ts";
 import { createVps, parseVps } from "../src/vps.ts";
+import { createAlerts, issuesFrom } from "../src/alerts.ts";
 import { createObs } from "../src/obs.ts";
 import { createSpotify } from "../src/spotify.ts";
 import { openKv } from "../src/db.ts";
@@ -509,6 +510,82 @@ test("vps companion output, status and route", async () => {
   const cookie = String(login.headers["set-cookie"]).split(";")[0];
   assert.deepEqual((await app.inject({ method: "GET", url: "/api/vps", headers: { cookie } })).json(), { configured: false });
   await app.close();
+});
+
+test("alerts: issues, debounce, resolve, restart, failed sends", async () => {
+  const o = issuesFrom(
+    { pi: { tempC: 76 }, containers: [{ name: "caddy", state: "running" }, { name: "ha", state: "exited" }], snapshotAge: 10, hosts: [{ name: "nas", up: false }] },
+    { configured: true, reachable: true, snapshotAge: 5, containers: [{ owner: "alice", name: "db", state: "exited" }], incomplete: ["bob"] },
+    { configured: true, reachable: true, sensors: [{ id: "sensor.t", name: "Echo temperature", state: "unavailable" }, { id: "sensor.l", name: "Light", state: "3" }] });
+  assert.deepEqual(o.issues.map((i) => i.key), ["pi-hot", "pi-container:ha", "host:nas", "vps-container:alice/db", "vps-incomplete:bob", "ha-sensor:sensor.t"]);
+  assert.deepEqual(o.unknown, ["vps-container:bob/"]);
+  const down = issuesFrom(null, { configured: true, reachable: false, error: "x" }, { configured: true, reachable: false, sensors: [] });
+  assert.deepEqual(down.issues.map((i) => i.key), ["homelab", "vps", "ha"]);
+  assert.deepEqual(down.unknown, ["pi-", "host:", "vps-", "ha-"]);
+  assert.deepEqual(issuesFrom({ pi: { tempC: 50 }, containers: [], snapshotAge: 900, hosts: [] }, null, null).issues.map((i) => i.key), ["pi-containers"]);
+  assert.deepEqual(issuesFrom({ pi: { tempC: 74 }, containers: [], snapshotAge: 1, hosts: [] }, { configured: false }, null).issues, []);
+
+  for (const bad of ["https://user:pw@ntfy.sh/x", "https://ntfy.sh:bogus/x", "https://ntfy.sh?x=/topic", "https://ntfy.sh/a/b", "ftp://ntfy.sh/x"]) {
+    const warned: string[] = [];
+    assert.equal(createAlerts({ url: bad }, openKv(":memory:"), async () => ({ issues: [], unknown: [] }), (m) => warned.push(m)).configured, false, bad);
+    assert.equal(warned.length, 1);
+  }
+  assert.equal(createAlerts({ url: "http://lan-ntfy/x", token: "tk" }, openKv(":memory:"), async () => ({ issues: [], unknown: [] })).configured, false);
+  assert.equal(createAlerts({ url: "http://lan-ntfy/x" }, openKv(":memory:"), async () => ({ issues: [], unknown: [] })).configured, true);
+  await assert.rejects(createAlerts({}, openKv(":memory:"), async () => ({ issues: [], unknown: [] })).test(), /not configured/);
+
+  const sent: { title: string; body: string; auth: string | null }[] = [];
+  let failOn = "";
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (_url: string, init: RequestInit) => {
+    if (failOn && String(init.body).includes(failOn)) throw new Error("down");
+    const h = new Headers(init.headers);
+    sent.push({ title: h.get("title")!, body: String(init.body), auth: h.get("authorization") });
+    return new Response("{}", { status: 200 });
+  }) as typeof fetch;
+  try {
+    const kv = openKv(":memory:");
+    let obs = { issues: [{ key: "host:nas", msg: "Host nas is down" }], unknown: [] as string[] };
+    const make = () => createAlerts({ url: "https://ntfy.sh/nexus-test", token: "tk_x" }, kv, async () => obs);
+    let a = make();
+    await a.tick(); // first sighting: no alert yet
+    assert.equal(sent.length, 0);
+    await a.tick(); // second in a row: alert
+    assert.deepEqual(sent, [{ title: "Nexus: problem", body: "Host nas is down", auth: "Bearer tk_x" }]);
+    await a.tick(); // still down: nothing new
+    a = make(); // restart (deploy): already alerted, not re-sent
+    await a.tick();
+    assert.equal(sent.length, 1);
+    obs = { issues: [], unknown: ["host:"] }; // hosts not observable: not a recovery
+    await a.tick();
+    assert.equal(sent.length, 1);
+    obs = { issues: [], unknown: [] };
+    await a.tick(); // observed healthy: resolved
+    assert.deepEqual(sent[1], { title: "Nexus: resolved", body: "Cleared: Host nas is down", auth: "Bearer tk_x" });
+    // A blip (one check) never alerts; an unknown sample breaks a streak.
+    obs = { issues: [{ key: "ha", msg: "Home Assistant unreachable" }], unknown: [] }; await a.tick();
+    obs = { issues: [], unknown: [] }; await a.tick();
+    obs = { issues: [{ key: "pi-container:x", msg: "Container x is exited" }], unknown: [] }; await a.tick();
+    obs = { issues: [], unknown: ["pi-container:"] }; await a.tick();
+    obs = { issues: [{ key: "pi-container:x", msg: "Container x is exited" }], unknown: [] }; await a.tick();
+    assert.equal(sent.length, 2);
+    // One failing send does not hold back the others, and is retried next time.
+    obs = { issues: [{ key: "a", msg: "A down" }, { key: "b", msg: "B down" }], unknown: [] }; await a.tick();
+    failOn = "A down"; await a.tick();
+    assert.deepEqual(sent.slice(2).map((x) => x.body), ["B down"]);
+    failOn = ""; await a.tick();
+    assert.deepEqual(sent.slice(2).map((x) => x.body), ["B down", "A down"]);
+    // Overlapping ticks run once.
+    const n = sent.length;
+    obs = { issues: [], unknown: [] };
+    await Promise.all([a.tick(), a.tick()]);
+    assert.equal(sent.length, n + 2); // A and B resolved once each
+    await a.idle();
+    await a.test();
+    assert.equal(sent.at(-1)!.title, "Nexus");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });
 
 test("web build id header changes with the build", async () => {

@@ -149,6 +149,13 @@ Phones, RTMP apps and action cameras: README, "Studio: adding a camera".
 See README, "Mac companion". In short: create a key on the Pi, then run `deploy/mac/install.sh '<key>' <pi-ip>` on
 the Mac and set `MAC_HOST` and `MAC_USER`.
 
+### Phone alerts
+
+Install the [ntfy](https://ntfy.sh) app and subscribe to a topic with a long random name (on the public ntfy.sh
+server, the name is the only thing keeping others out). Set `NTFY_URL=https://ntfy.sh/<that-topic>` (or your own
+server's topic, with `NTFY_TOKEN` if it requires login), restart Nexus, then Settings, Send test alert. You get a
+message when a host, container, the VPS or Home Assistant has a problem for about 4 minutes, and when it clears.
+
 ### Servers and a VPS (Homelab page)
 
 - `NEXUS_HOSTS=nas=192.168.1.10:22,router=192.168.1.1:443` shows whether each host answers on that port.
