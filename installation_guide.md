@@ -162,6 +162,11 @@ message when a host, container, the VPS or Home Assistant has a problem for abou
   For a server with fail2ban, check a web port rather than ssh, so the checks are never counted as failed logins.
 - For CPU, memory and containers of a Linux VPS: README, "VPS companion".
 
+### Backups
+
+Nightly, encrypted, to another Linux machine you can ssh to (a NAS, a desktop that stays on, a VPS): README,
+"Backups". Three commands, one of them on the backup server. Keep a copy of the backup password off the Pi.
+
 ## Updating
 
 ```sh

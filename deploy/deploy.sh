@@ -29,6 +29,10 @@ ssh -- "$HOST" bash -s -- "$PUBLIC_URL" ${dns[@]+"${dns[@]}"} <<'REMOTE'
   sudo install -m 644 deploy/Caddyfile.rendered /etc/nexus/Caddyfile
   sudo install -m 644 deploy/nexus.network deploy/nexus.container deploy/caddy.container deploy/homeassistant.container /etc/containers/systemd/
   sudo install -m 644 deploy/nexus-snapshot.service deploy/nexus-snapshot.timer /etc/systemd/system/
+  # Backups: installed always, switched on once by deploy/backup/setup-pi.sh.
+  sudo install -m 755 deploy/backup/nexus-backup.sh /usr/local/libexec/nexus-backup.sh
+  sudo install -m 644 deploy/backup/lib.sh /usr/local/libexec/nexus-backup-lib.sh
+  sudo install -m 644 deploy/backup/nexus-backup.service deploy/backup/nexus-backup.timer /etc/systemd/system/
   sudo install -m 644 deploy/nexus-tmpfiles.conf /etc/tmpfiles.d/nexus.conf
   sudo systemd-tmpfiles --create /etc/tmpfiles.d/nexus.conf
   if ! sudo test -f /etc/nexus/nexus.env; then

@@ -1,0 +1,6 @@
+[Unit]
+Description=Root-only daily copy of the Nexus backup repository
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/nexus-backup-vault.sh @REPO@

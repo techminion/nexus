@@ -1,0 +1,16 @@
+[Unit]
+Description=Encrypted backup of Nexus, Home Assistant and Caddy data (restic)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/nexus-backup.sh
+# Runs however the job ends (failure, timeout, kill): removes the plaintext staging copy, alerts on failure.
+ExecStopPost=/usr/local/libexec/nexus-backup.sh --after
+# restic keeps its index cache here (systemd creates /var/cache/nexus-backup)
+CacheDirectory=nexus-backup
+Environment=XDG_CACHE_HOME=/var/cache/nexus-backup
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=2h

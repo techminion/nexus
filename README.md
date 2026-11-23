@@ -167,6 +167,37 @@ went `unavailable`) every 2 minutes. A problem that lasts two checks is pushed t
 to a topic, set `NTFY_URL` to it (on the public ntfy.sh server the topic name is the only secret, so make it long
 and random, or use your own server with `NTFY_TOKEN`), restart, and use Settings, Send test alert.
 
+## Backups
+
+A nightly, encrypted [restic](https://restic.net) backup of everything Nexus keeps on the Pi: the Nexus database,
+Home Assistant's config (its live SQLite database copied with SQLite's online backup), Caddy's certificate
+authority and `/etc/nexus` (secrets included: the repository is encrypted). It goes over sftp to any Linux machine,
+to an account whose key can only speak sftp. 7 daily, 4 weekly and 6 monthly snapshots are kept. A failed backup is
+pushed to your phone when Alerts are set up.
+
+1. On the Pi, after a deploy: `sudo bash ~/nexus/deploy/backup/setup-pi.sh <user>@<backup-host>` (e.g. `nexusbak@nas.lan`).
+   It installs restic, creates the backup key and `/etc/nexus/backup.pass`, and pins the server's host key.
+   **Save a copy of `backup.pass` off the Pi**: without it the backups cannot be decrypted.
+2. On the backup server: `sudo bash backup-target.sh '<the key setup-pi.sh printed>'`.
+3. On the Pi: `sudo systemctl start nexus-backup && sudo systemctl enable --now nexus-backup.timer`.
+
+The backup account can only use sftp, and only inside its repository folder. The server also keeps a daily
+root-only copy of the repository for 30 days (`/var/lib/nexus-backup-vault`), so a compromised Pi cannot delete
+every recovery point.
+
+**Restore.** Keep three things off the Pi: the password in `backup.pass`, the server (`BACKUP_TARGET`) and the
+path (`BACKUP_PATH`). On a replacement Pi: run `./install.sh`, then `setup-pi.sh` with the same server and path,
+replace `/etc/nexus/backup.pass` with your saved copy, authorize the new key with `backup-target.sh`, then:
+
+```sh
+sudo bash ~/nexus/deploy/backup/restore.sh --dry-run    # shows the snapshots and what would change
+sudo bash ~/nexus/deploy/backup/restore.sh [snapshot]   # default: latest; asks before replacing anything
+```
+
+It stops Nexus, Caddy and Home Assistant, replaces the three data volumes and `/etc/nexus` (keeping the backup
+settings) and starts them again. If the server's account was emptied, restore from a vault copy on the server:
+`sudo restic -r /var/lib/nexus-backup-vault/<date> restore latest --target <dir>`.
+
 ## VPS companion
 
 CPU, memory, disk and every user's containers on a Linux VPS, on the Homelab page. Nexus logs in as a dedicated
