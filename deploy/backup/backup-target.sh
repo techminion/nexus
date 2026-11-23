@@ -21,6 +21,8 @@ home=$(getent passwd "$user" | cut -d: -f6)
 chown root:root "$home"; chmod 755 "$home"
 install -d -m 755 -o root -g root "$home/.ssh"
 install -d -m 700 -o "$user" -g "$user" "$home/nexus"
+# Its startup files too: bash reads ~/.bashrc even for an sshd forced command, so a writable one is a way out of sftp.
+find "$home" -mindepth 1 -maxdepth 1 ! -name nexus -exec chown -R root:root {} +
 tmp=$(mktemp "$home/.ssh/.ak.XXXXXX")
 echo "restrict,command=\"$sftp\" $key" > "$tmp"; chmod 644 "$tmp"; mv -f "$tmp" "$home/.ssh/authorized_keys"
 # Daily root-only copies of the repository (see nexus-backup-vault.sh).
