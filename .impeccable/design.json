@@ -1,0 +1,359 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-24T13:44:33+00:00",
+  "title": "Design System: Nexus",
+  "extensions": {
+    "colorMeta": {
+      "nexus-green": {
+        "role": "primary",
+        "displayName": "Nexus Green",
+        "canonical": "#3ddc84",
+        "tonalRamp": [
+          "oklch(15% 0.027 154)",
+          "oklch(26% 0.028 154)",
+          "oklch(38% 0.061 154)",
+          "oklch(49% 0.094 154)",
+          "oklch(61% 0.127 154)",
+          "oklch(72% 0.160 154)",
+          "oklch(84% 0.168 154)",
+          "oklch(95% 0.135 154)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "tonalRamp": [
+          "oklch(15% 0.005 87)",
+          "oklch(26% 0.005 87)",
+          "oklch(38% 0.005 87)",
+          "oklch(49% 0.008 87)",
+          "oklch(61% 0.014 87)",
+          "oklch(72% 0.020 87)",
+          "oklch(84% 0.025 87)",
+          "oklch(95% 0.031 87)"
+        ],
+        "note": "light-dark() pair; ramp built from the light value"
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Panel",
+        "tonalRamp": [
+          "oklch(15% 0.000 90)",
+          "oklch(26% 0.000 90)",
+          "oklch(38% 0.000 90)",
+          "oklch(49% 0.000 90)",
+          "oklch(61% 0.000 90)",
+          "oklch(72% 0.000 90)",
+          "oklch(84% 0.000 90)",
+          "oklch(95% 0.000 90)"
+        ],
+        "note": "light-dark() pair; ramp built from the light value"
+      },
+      "highlight-panel": {
+        "role": "neutral",
+        "displayName": "Highlight Panel",
+        "tonalRamp": [
+          "oklch(15% 0.012 99)",
+          "oklch(26% 0.012 99)",
+          "oklch(38% 0.012 99)",
+          "oklch(49% 0.019 99)",
+          "oklch(61% 0.033 99)",
+          "oklch(72% 0.048 99)",
+          "oklch(84% 0.062 99)",
+          "oklch(95% 0.076 99)"
+        ],
+        "note": "light-dark() pair; ramp built from the light value"
+      },
+      "ink-line": {
+        "role": "neutral",
+        "displayName": "Ink Line",
+        "tonalRamp": [
+          "oklch(15% 0.000 0)",
+          "oklch(26% 0.000 0)",
+          "oklch(38% 0.000 0)",
+          "oklch(49% 0.000 0)",
+          "oklch(61% 0.000 0)",
+          "oklch(72% 0.000 0)",
+          "oklch(84% 0.000 0)",
+          "oklch(95% 0.000 0)"
+        ],
+        "note": "light-dark() pair; ramp built from the light value"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "tonalRamp": [
+          "oklch(15% 0.000 90)",
+          "oklch(26% 0.000 90)",
+          "oklch(38% 0.000 90)",
+          "oklch(49% 0.000 90)",
+          "oklch(61% 0.000 90)",
+          "oklch(72% 0.000 90)",
+          "oklch(84% 0.000 90)",
+          "oklch(95% 0.000 90)"
+        ],
+        "note": "light-dark() pair; ramp built from the light value"
+      },
+      "ink-dim": {
+        "role": "neutral",
+        "displayName": "Ink Dim",
+        "tonalRamp": [
+          "oklch(15% 0.000 90)",
+          "oklch(26% 0.000 90)",
+          "oklch(38% 0.000 90)",
+          "oklch(49% 0.000 90)",
+          "oklch(61% 0.000 90)",
+          "oklch(72% 0.000 90)",
+          "oklch(84% 0.000 90)",
+          "oklch(95% 0.000 90)"
+        ],
+        "note": "light-dark() pair; ramp built from the light value"
+      },
+      "ok": {
+        "role": "status",
+        "displayName": "OK",
+        "tonalRamp": [
+          "oklch(15% 0.059 152)",
+          "oklch(26% 0.081 152)",
+          "oklch(38% 0.103 152)",
+          "oklch(49% 0.113 152)",
+          "oklch(61% 0.092 152)",
+          "oklch(72% 0.070 152)",
+          "oklch(84% 0.048 152)",
+          "oklch(95% 0.026 152)"
+        ],
+        "note": "light-dark() pair; ramp built from the light value"
+      },
+      "warn": {
+        "role": "status",
+        "displayName": "Warn",
+        "tonalRamp": [
+          "oklch(15% 0.052 55)",
+          "oklch(26% 0.076 55)",
+          "oklch(38% 0.100 55)",
+          "oklch(49% 0.124 55)",
+          "oklch(61% 0.115 55)",
+          "oklch(72% 0.091 55)",
+          "oklch(84% 0.067 55)",
+          "oklch(95% 0.043 55)"
+        ],
+        "note": "light-dark() pair; ramp built from the light value"
+      },
+      "bad": {
+        "role": "status",
+        "displayName": "Bad",
+        "tonalRamp": [
+          "oklch(15% 0.056 25)",
+          "oklch(26% 0.094 25)",
+          "oklch(38% 0.132 25)",
+          "oklch(49% 0.170 25)",
+          "oklch(61% 0.209 25)",
+          "oklch(72% 0.171 25)",
+          "oklch(84% 0.133 25)",
+          "oklch(95% 0.095 25)"
+        ],
+        "note": "light-dark() pair; ramp built from the light value"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The dashboard clock."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "The date under the clock, Ink Dim."
+      },
+      "reading": {
+        "displayName": "Reading",
+        "purpose": "Values in reading tiles."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Rows, track names, settings."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Captions and metadata in Ink Dim."
+      }
+    },
+    "shadows": [
+      {
+        "name": "slab",
+        "value": "6px 6px 0 var(--color-line)",
+        "purpose": "Every card."
+      },
+      {
+        "name": "key",
+        "value": "4px 4px 0 var(--color-line)",
+        "purpose": "Buttons, nav items, reading tiles, login logo."
+      },
+      {
+        "name": "badge",
+        "value": "3px 3px 0 var(--color-line)",
+        "purpose": "Header logo plate."
+      },
+      {
+        "name": "pressed",
+        "value": "none; transform: translate(4px, 4px)",
+        "purpose": "A key while held."
+      }
+    ],
+    "motion": [
+      {
+        "name": "press",
+        "value": "transform, box-shadow 75ms",
+        "purpose": "Key press-in; disabled under prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "portrait",
+        "value": "(orientation: portrait)",
+        "purpose": "Bottom nav, single column."
+      },
+      {
+        "name": "landscape",
+        "value": "(orientation: landscape)",
+        "purpose": "Left nav rail, multi-column grids."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "The default raised key; presses into its shadow.",
+      "html": "<button class=\"ds-btn\">Reset</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;min-width:48px;padding:0 16px;border:3px solid var(--color-line);border-radius:8px;background:var(--color-surface);color:var(--color-fg);font:700 1rem ui-rounded,system-ui,sans-serif;box-shadow:4px 4px 0 var(--color-line);transition:transform 75ms,box-shadow 75ms;cursor:pointer;user-select:none}.ds-btn:active{transform:translate(4px,4px);box-shadow:none}.ds-btn:focus-visible{outline:3px dashed var(--color-line);outline-offset:3px}"
+    },
+    {
+      "name": "Accent Button",
+      "kind": "button",
+      "refersTo": "button-accent",
+      "description": "Primary action, selected tab, or a toggle that is on.",
+      "html": "<button class=\"ds-btn-accent\" aria-pressed=\"true\">Up next</button>",
+      "css": ".ds-btn-accent{display:inline-flex;align-items:center;justify-content:center;min-height:48px;min-width:48px;padding:0 16px;border:3px solid var(--color-line);border-radius:8px;background:#3ddc84;color:#000;font:700 1rem ui-rounded,system-ui,sans-serif;box-shadow:4px 4px 0 var(--color-line);transition:transform 75ms,box-shadow 75ms;cursor:pointer}.ds-btn-accent:active{transform:translate(4px,4px);box-shadow:none}.ds-btn-accent:focus-visible{outline:3px dashed var(--color-line);outline-offset:3px}"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "The slab every page is built from.",
+      "html": "<section class=\"ds-card\"><h2 class=\"ds-card-title\">Containers <span>snapshot 14s old</span></h2><p>3/3 running</p></section>",
+      "css": ".ds-card{border:3px solid var(--color-line);border-radius:12px;background:var(--color-surface);color:var(--color-fg);padding:16px;box-shadow:6px 6px 0 var(--color-line);font-family:ui-rounded,system-ui,sans-serif}.ds-card-title{margin:0 0 8px;font-size:1.125rem;font-weight:600}.ds-card-title span{font-size:.875rem;font-weight:400;color:var(--color-dim)}"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Text field: same outline and height as a button.",
+      "html": "<input class=\"ds-input\" type=\"password\" placeholder=\"Password\">",
+      "css": ".ds-input{min-height:48px;width:100%;padding:0 12px;border:3px solid var(--color-line);border-radius:8px;background:var(--color-surface);color:var(--color-fg);font:500 1rem ui-rounded,system-ui,sans-serif}.ds-input:focus-visible{outline:3px dashed var(--color-line);outline-offset:3px}"
+    },
+    {
+      "name": "Nav Rail",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Square icon keys; the current page is green.",
+      "html": "<nav class=\"ds-nav\"><button class=\"ds-nav-item\" aria-current=\"true\" aria-label=\"Dashboard\"><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z\"/></svg></button><button class=\"ds-nav-item\" aria-label=\"Music\"><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z\"/></svg></button></nav>",
+      "css": ".ds-nav{display:flex;flex-direction:column;gap:4px;padding:8px}.ds-nav-item{display:inline-flex;align-items:center;justify-content:center;width:52px;height:48px;border:3px solid var(--color-line);border-radius:8px;background:var(--color-surface);color:var(--color-fg);box-shadow:4px 4px 0 var(--color-line);transition:transform 75ms,box-shadow 75ms;cursor:pointer}.ds-nav-item[aria-current=true]{background:#3ddc84;color:#000}.ds-nav-item:active{transform:translate(4px,4px);box-shadow:none}.ds-nav-item:focus-visible{outline:3px dashed var(--color-line);outline-offset:3px}"
+    },
+    {
+      "name": "Status Lamp",
+      "kind": "chip",
+      "description": "Health lamp with its label; green, red, or dim for unknown.",
+      "html": "<span class=\"ds-lamp\"><i class=\"ds-lamp-ok\"></i>Server</span> <span class=\"ds-lamp\"><i class=\"ds-lamp-bad\"></i>Spotify</span> <span class=\"ds-lamp\"><i></i>Home</span>",
+      "css": ".ds-lamp{display:inline-flex;align-items:center;gap:6px;font:400 .875rem ui-rounded,system-ui,sans-serif;color:var(--color-dim);margin-right:12px}.ds-lamp i{width:12px;height:12px;border-radius:9999px;border:2px solid var(--color-line);background:var(--color-dim)}.ds-lamp i.ds-lamp-ok{background:#3ddc84}.ds-lamp i.ds-lamp-bad{background:var(--color-bad)}"
+    },
+    {
+      "name": "Reading Tile",
+      "kind": "custom",
+      "refersTo": "reading-tile",
+      "description": "A value to read from across the room.",
+      "html": "<div class=\"ds-reading\"><p class=\"ds-reading-l\">Outside</p><p class=\"ds-reading-v\">32.8 °C</p><p class=\"ds-reading-n\">Partly cloudy</p></div>",
+      "css": ".ds-reading{border:3px solid var(--color-line);border-radius:8px;background:var(--color-raised);color:var(--color-fg);padding:8px 12px;box-shadow:4px 4px 0 var(--color-line);font-family:ui-rounded,system-ui,sans-serif;max-width:220px}.ds-reading p{margin:0}.ds-reading-l{font-size:.875rem;color:var(--color-dim)}.ds-reading-v{font-size:1.875rem;font-weight:900;font-variant-numeric:tabular-nums}.ds-reading-n{font-size:.875rem;font-weight:700}"
+    },
+    {
+      "name": "Meter Bar",
+      "kind": "custom",
+      "description": "Labelled usage bar (CPU, RAM, Disk, progress).",
+      "html": "<div class=\"ds-meter\"><div class=\"ds-meter-row\"><span>RAM</span><span>1006 / 3795 MB</span></div><div class=\"ds-meter-track\"><div style=\"width:26%\"></div></div></div>",
+      "css": ".ds-meter{font:400 .875rem ui-rounded,system-ui,sans-serif;color:var(--color-dim);max-width:360px}.ds-meter-row{display:flex;justify-content:space-between;margin-bottom:4px}.ds-meter-track{height:12px;border:2px solid var(--color-line);border-radius:9999px;background:var(--color-surface);overflow:hidden}.ds-meter-track div{height:100%;background:#3ddc84}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Control Deck",
+    "overview": "Nexus is a sturdy hardware panel for a home: clear switches, status lamps and big readouts, read from a seat away and tapped in passing. Every surface is a slab with a thick ink outline and a hard offset shadow, as if cut from board and screwed onto the desk. Controls are chunky and clicky. They stand proud of the panel and press flat when tapped, so a tap feels like pushing a real button.\n\nThe deck has two equal finishes. **Cream paper** has black ink outlines. **Near-black** has bone-coloured outlines. Every colour is a `light-dark()` pair, so a screen is designed once and must read just as well in both themes. One colour carries the identity: Nexus Green, on the logo, the active page, the play button and every healthy status lamp. Everything else is ink, paper and three status colours.\n\nDensity is low on purpose. The clock and the readings are the largest things on screen, the status strip is a row of lamps, and a healthy day reads as calm. It must never slide into the generic admin-panel look of thin grey hairlines and small text, and it must never go soft: no blur, no glass, no gradients.",
+    "keyCharacteristics": [
+      "3px ink outlines on every surface and control. Weight is the structure.",
+      "Hard offset shadows with no blur (6px on cards, 4px on controls). They are the only source of depth.",
+      "Pressing a control moves it into its shadow (4px down and right, shadow gone) in 75ms.",
+      "One brand colour (Nexus Green) plus paper, ink and status colours, every one defined for both themes.",
+      "Heavy rounded system type with tabular figures, and huge readouts for distance reading.",
+      "Touch targets of 48px or more everywhere."
+    ],
+    "rules": [
+      {
+        "name": "The Two Finishes Rule",
+        "body": "Every colour is declared as `light-dark(paper, dark)` in the `@theme` block in `apps/web/src/index.css`, and nowhere else. A colour written for one theme only is a bug.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ink Draws Everything Rule",
+        "body": "Outlines and shadows use Ink Line, never a tint, grey or transparent black. A border that has to be quieter gets thinner (2px, as on lamps and bars), not lighter.",
+        "section": "colors"
+      },
+      {
+        "name": "The Lamp Rule",
+        "body": "A status is a round lamp with an ink ring: green for healthy, red for a problem, Ink Dim for unknown or not set up. Never colour alone: the lamp always has a text label next to it.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Anything that changes while you watch (clock, timer, progress times, temperatures, percentages) uses tabular figures, so digits never shift.",
+        "section": "typography"
+      },
+      {
+        "name": "The Weight Not Size Rule",
+        "body": "Inside a card, hierarchy comes from weight (900 against 400) and from Ink against Ink Dim before size. Small grey type is for metadata only.",
+        "section": "typography"
+      },
+      {
+        "name": "The Kiosk First Rule",
+        "body": "Design at a landscape tablet (1280×800) first, then check a phone (390px wide) and a laptop. Nothing may need hover. Nothing may scroll sideways.",
+        "section": "layout"
+      },
+      {
+        "name": "The Hard Shadow Rule",
+        "body": "Shadows are solid ink, offset down and to the right, with 0 blur. Never `blur`, `backdrop-filter`, `drop-shadow` or gradients.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Press Rule",
+        "body": "Anything with a Key shadow is a control and must press into it on `:active` (75ms). Anything that does not press does not get a Key shadow.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** outline every surface and control at 3px in Ink Line, and give cards the 6px Slab shadow and controls the 4px Key shadow.",
+      "**Do** make every control at least 48×48px, and give it the press-in `:active` state.",
+      "**Do** define every new colour as a `light-dark()` pair in `@theme`, and check the screen in both themes before calling it done.",
+      "**Do** put Nexus Green on the identity and on on, active or healthy states, with black text on it.",
+      "**Do** make readouts big, heavy and tabular, and keep secondary text in Ink Dim at body or label size.",
+      "**Do** show a missing integration as a hidden card or plain \"not set up\" text, never as an error."
+    ],
+    "donts": [
+      "**Don't** use blurred shadows, glass or `backdrop-filter`, gradients, or soft elevation. Depth is hard ink shadows only.",
+      "**Don't** build the generic admin-panel look: thin grey 1px borders, small dense tables, light grey text on white.",
+      "**Don't** use colour alone for status. A lamp always has a text label.",
+      "**Don't** load web fonts, icon fonts or anything from a CDN. Fonts are the system rounded face and icons are inline SVG paths.",
+      "**Don't** rotate anything except the Nexus logo plate."
+    ]
+  }
+}
