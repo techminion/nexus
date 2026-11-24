@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { fmtTime, useNow } from "./App";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, homelabIssues, macCommand, MAC_COMMANDS, useHa, useHomelab, useVps, useMac, useObs, useSettings, useSpotify, useStudio, type Homelab as HomelabData, type Action, type MacCommand, type Device, type Item, type Module, type PlaylistInfo, type RecentTrack, type Playback, type Settings, type Shortcut, type SpotifyState } from "./api";
+import { api, ApiError, homelabIssues, macCommand, MAC_COMMANDS, useHa, useHomelab, useVps, useMac, useObs, useSettings, useSpotify, useStudio, type Homelab as HomelabData, type Action, type MacCommand, type Device, type Item, type Module, type PlaylistInfo, type RecentTrack, type Playback, type Settings, type Shortcut, type SpotifyState } from "./api";
 
 export const Icon = ({ d, stroke }: { d: string; stroke?: boolean }) => (
   <svg viewBox="0 0 24 24" className="h-6 w-6" fill={stroke ? "none" : "currentColor"} stroke={stroke ? "currentColor" : "none"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -39,7 +39,13 @@ function useControl() {
     },
     onSettled: () => void setTimeout(() => qc.invalidateQueries({ queryKey: ["spotify"] }), 500),
   });
-  return { run: m.mutate, error: m.isError ? m.error.message : null };
+  const { isError, error, reset } = m;
+  useEffect(() => {
+    if (!isError) return;
+    const t = setTimeout(reset, 5000); // a failed control explains itself briefly, then gets out of the way
+    return () => clearTimeout(t);
+  }, [isError, error, reset]);
+  return { run: m.mutate, error: isError ? { message: error.message, code: error instanceof ApiError ? error.code : "" } : null };
 }
 
 function Notice({ children }: { children: ReactNode }) {
@@ -66,7 +72,7 @@ function Progress({ p, at, onSeek }: { p: Playback; at: number; onSeek: (ms: num
     <div className="flex items-center gap-2 text-sm tabular-nums text-dim">
       <span>{mmss(cur)}</span>
       <div
-        className="flex h-11 flex-1 touch-none items-center" role="slider" aria-label="Seek" aria-valuemin={0} aria-valuemax={p.duration_ms} aria-valuenow={Math.round(cur)}
+        className="flex h-11 flex-1 touch-none items-center short:h-9" role="slider" aria-label="Seek" aria-valuemin={0} aria-valuemax={p.duration_ms} aria-valuenow={Math.round(cur)}
         onPointerDown={(e) => { if (!p.duration_ms || drag) return; e.currentTarget.setPointerCapture(e.pointerId); setDrag({ id: e.pointerId, uri: p.uri, f: frac(e) }); }}
         onPointerMove={(e) => drag?.id === e.pointerId && setDrag({ ...drag, f: frac(e) })}
         onPointerUp={(e) => { if (drag?.id !== e.pointerId) return; if (drag.uri === p.uri) onSeek(Math.round(frac(e) * p.duration_ms)); setDrag(null); }}
@@ -99,19 +105,20 @@ function NowPlaying({ stack, go }: { stack?: boolean; go?: (p: string) => void }
   if (!p) return <Notice>Nothing playing. Start Spotify on a device, or pick one in Devices.</Notice>;
   const { run } = ctl;
   const next = { repeat: { off: "context", context: "track", track: "off" } as const }.repeat[p.repeat] ?? "off";
-  const likeBtn = (p.uri && /^spotify:track:/.test(p.uri) ? <button className="btn min-h-14 min-w-14 shrink-0" aria-label={p.liked ? "Unlike" : "Like"} aria-pressed={!!p.liked} onClick={() => run({ method: "PUT", path: "/api/spotify/like", body: { uri: p.uri, liked: !p.liked }, patch: { liked: !p.liked } })}><svg viewBox="0 0 24 24" className="h-7 w-7" fill={p.liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden><path d={I.heart} /></svg></button> : null);
+  const likeBtn = (p.uri && /^spotify:track:/.test(p.uri) ? <button className="btn min-h-14 min-w-14 shrink-0 short:min-h-12 short:min-w-12" aria-label={p.liked ? "Unlike" : "Like"} aria-pressed={!!p.liked} onClick={() => run({ method: "PUT", path: "/api/spotify/like", body: { uri: p.uri, liked: !p.liked }, patch: { liked: !p.liked } })}><svg viewBox="0 0 24 24" className="h-7 w-7" fill={p.liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden><path d={I.heart} /></svg></button> : null);
   const progress = <Progress p={p} at={q.dataUpdatedAt} onSeek={(ms) => run({ method: "PUT", path: "/api/spotify/seek", body: { positionMs: ms }, patch: { progress_ms: ms } })} />;
   const transport = (
     <>
       <button className="btn" aria-label="Previous" onClick={() => run({ method: "PUT", path: "/api/spotify/previous" })}><Icon d={I.prev} /></button>
-      <button className="btn btn-accent min-h-16 min-w-20 short:min-h-14" aria-label={p.is_playing ? "Pause" : "Play"} onClick={() => run({ method: "PUT", path: p.is_playing ? "/api/spotify/pause" : "/api/spotify/play", patch: { is_playing: !p.is_playing } })}><Icon d={p.is_playing ? I.pause : I.play} /></button>
+      <button className="btn btn-accent min-h-16 min-w-20 short:min-h-12" aria-label={p.is_playing ? "Pause" : "Play"} onClick={() => run({ method: "PUT", path: p.is_playing ? "/api/spotify/pause" : "/api/spotify/play", patch: { is_playing: !p.is_playing } })}><Icon d={p.is_playing ? I.pause : I.play} /></button>
       <button className="btn" aria-label="Next" onClick={() => run({ method: "PUT", path: "/api/spotify/next" })}><Icon d={I.next} /></button>
     </>
   );
   const shuffleBtn = <button className={`btn ${p.shuffle ? "btn-accent" : ""}`} aria-label="Shuffle" aria-pressed={p.shuffle} onClick={() => run({ method: "PUT", path: "/api/spotify/shuffle", body: { state: !p.shuffle }, patch: { shuffle: !p.shuffle } })}><Icon d={I.shuffle} stroke /></button>;
   const repeatBtn = <button className={`btn ${p.repeat !== "off" ? "btn-accent" : ""}`} aria-label={`Repeat ${p.repeat}`} onClick={() => run({ method: "PUT", path: "/api/spotify/repeat", body: { state: next }, patch: { repeat: next } })}><Icon d={I.repeat} stroke />{p.repeat === "track" && "1"}</button>;
   const volume = p.volume !== null && <VolumeSlider volume={p.volume} onSet={(v) => run({ method: "PUT", path: "/api/spotify/volume", body: { percent: v }, patch: { volume: v } })} />;
-  const err = ctl.error && <p role="alert" className="text-sm text-bad">{ctl.error}</p>;
+  // The dashboard keeps showing the last played song when no device is active, so "no device" needs no message there.
+  const err = ctl.error && (stack || ctl.error.code !== "no_device") && <p role="alert" className="truncate text-sm font-bold text-dim">{ctl.error.message}</p>;
   if (stack)
     return (
       <section className="card flex min-h-0 flex-col justify-center gap-2 overflow-y-auto" aria-label="Now playing">
@@ -131,13 +138,13 @@ function NowPlaying({ stack, go }: { stack?: boolean; go?: (p: string) => void }
       </section>
     );
   return (
-    <section className="card flex min-w-0 shrink-0 flex-col gap-1 landscape:flex-1 landscape:justify-center landscape:gap-3 short:gap-2" aria-label="Now playing">
+    <section className="card flex min-w-0 shrink-0 flex-col gap-1 landscape:flex-1 landscape:justify-center landscape:gap-3 short:flex-none short:justify-start short:gap-1 short:p-2" aria-label="Now playing">
       <div className="flex min-w-0 items-center gap-3">
-        {p.art ? <img src={p.art} alt="" className="aspect-square w-[clamp(3.5rem,16vh,5.5rem)] shrink-0 rounded-lg frame object-cover landscape:w-[clamp(5rem,24vh,10rem)] short:w-20" /> : <div className="aspect-square w-[clamp(3.5rem,16vh,5.5rem)] shrink-0 rounded-lg frame bg-raised landscape:w-[clamp(5rem,24vh,10rem)] short:w-20" />}
+        {p.art ? <img src={p.art} alt="" className="aspect-square w-[clamp(3.5rem,16vh,5.5rem)] shrink-0 rounded-lg frame object-cover landscape:w-[clamp(5rem,24vh,10rem)] short:w-14" /> : <div className="aspect-square w-[clamp(3.5rem,16vh,5.5rem)] shrink-0 rounded-lg frame bg-raised landscape:w-[clamp(5rem,24vh,10rem)] short:w-14" />}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-lg font-bold landscape:text-2xl">{p.track ?? "Unknown"}</p>
-          <p className="truncate text-dim landscape:text-lg">{p.artists.join(", ")}</p>
-          {p.device && <p className="truncate text-sm text-dim">on {p.device}</p>}
+          <p className="line-clamp-2 text-lg font-bold leading-tight landscape:text-2xl short:text-xl">{p.track ?? "Unknown"}</p>
+          <p className="truncate text-dim landscape:text-lg short:text-base">{p.artists.join(", ")}</p>
+          {p.device && <p className="truncate text-sm text-dim short:hidden">on {p.device}</p>}
         </div>
         {likeBtn}
       </div>
@@ -181,17 +188,17 @@ function Shortcuts({ go }: { go: (p: string) => void }) {
   if (!settings) return null;
   if (settings.shortcuts.every((s) => s.action.type === "none"))
     return (
-      <section aria-label="Shortcuts" className="rounded-lg border-[3px] border-line bg-raised p-3">
-        <p className="text-dim">Shortcuts put your favorite actions one tap away. Add them in Settings.</p>
-        <button className="btn mt-2" onClick={() => go("/settings")}>Add shortcuts</button>
+      <section aria-label="Shortcuts" className="flex items-center gap-2 rounded-lg border-[3px] border-line bg-raised p-3 short:p-2">
+        <p className="text-dim short:text-sm">Shortcuts put your favorite actions one tap away. Add them in Settings.</p>
+        <button className="btn shrink-0" onClick={() => go("/settings")}>Add shortcuts</button>
       </section>
     );
   return (
     <section aria-label="Shortcuts">
-      <div className="grid grid-cols-2 gap-2 landscape:max-[1100px]:grid-cols-3 min-[1100px]:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 landscape:max-[1100px]:grid-cols-3 min-[1100px]:grid-cols-3 short:grid-cols-2! short:gap-1.5">
         {settings.shortcuts.map((s, i) =>
           s.action.type === "none" ? null : (
-            <button key={i} className="btn truncate" onClick={() => { if (runClient(s.action, go)) run.mutate(i); }}>{s.label || `Shortcut ${i + 1}`}</button>
+            <button key={i} className="btn min-w-0 short:min-h-12 short:px-2 short:text-sm" onClick={() => { if (runClient(s.action, go)) run.mutate(i); }}><span className="truncate">{s.label || `Shortcut ${i + 1}`}</span></button>
           ),
         )}
       </div>
@@ -207,27 +214,21 @@ const fmtCondition = (c: string) => CONDITION[c] ?? c.charAt(0).toUpperCase() + 
 
 function Reading({ label, value, unit, note }: { label: string; value: string; unit: string | null; note?: string }) {
   return (
-    <div className="min-w-0 rounded-lg border-[3px] border-line bg-raised px-3 py-2 ">
+    <div className="min-w-0 rounded-lg border-[3px] border-line bg-raised px-3 py-2 short:flex short:w-28 short:shrink-0 short:flex-col short:justify-center short:px-2 short:py-1">
       <p className="truncate text-sm text-dim">{label}</p>
-      <p className="truncate text-3xl font-black tabular-nums">{fmtReading(value)}{unit ? ` ${unit}` : ""}</p>
+      <p className="truncate text-3xl font-black tabular-nums short:text-2xl">{fmtReading(value)}{unit ? ` ${unit}` : ""}</p>
       {note && <p className="truncate text-sm font-bold">{note}</p>}
     </div>
   );
 }
 
-// Outside weather and room temperature from Home Assistant (first weather.* and first °C sensor in HA_SENSORS).
+// Room temperature from Home Assistant (first °C sensor in HA_SENSORS). Outside weather lives in the clock card.
 function HomeReadings() {
   const s = useHa().data;
   if (!s?.reachable) return null;
-  const weather = s.sensors.find((x) => x.id.startsWith("weather."));
   const room = s.sensors.find((x) => !x.id.startsWith("weather.") && x.unit === "°C");
-  if (!weather && !room) return null;
-  return (
-    <div className="grid grid-cols-2 gap-3" aria-label="Weather and room">
-      {weather && <Reading label="Outside" value={weather.state} unit={weather.unit} note={weather.condition && fmtCondition(weather.condition)} />}
-      {room && <Reading label="Room" value={room.state} unit={room.unit} />}
-    </div>
-  );
+  if (!room) return null;
+  return <Reading label="Room" value={room.state} unit={room.unit} />;
 }
 
 // Weather glyphs, same 24x24 / 2px stroke as the nav icons. Several HA conditions share one glyph.
@@ -252,11 +253,11 @@ function Forecast({ now }: { now: Date }) {
     .filter((d) => new Date(d.date) >= new Date(today)).slice(0, 5); // drop days already past
   if (!days.length) return null;
   return (
-    <ul className="mt-[clamp(0.75rem,4vh,2rem)] short:mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-3" aria-label="Forecast">
+    <ul className="mt-[clamp(0.75rem,4vh,2rem)] short:mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-3 short:grid-cols-3!" aria-label="Forecast">
       {days.map((d, i) => {
         const t = new Date(d.date);
         return (
-          <li key={d.date} className={`min-w-0 flex-col items-center rounded-lg border-[3px] border-line bg-raised px-1 py-[clamp(0.5rem,2vh,1rem)] short:py-1 text-center ${i >= 3 ? "hidden sm:flex" : "flex"}`}>
+          <li key={d.date} className={`min-w-0 flex-col items-center rounded-lg border-[3px] border-line bg-raised px-1 py-[clamp(0.5rem,2vh,1rem)] short:py-1 text-center ${i >= 3 ? "hidden sm:flex short:hidden!" : "flex"}`}>
             <p className="text-lg font-black sm:text-xl short:text-base">{t.toDateString() === today ? "Today" : t.toLocaleDateString([], { weekday: "short" })}</p>
             <svg viewBox="0 0 24 24" className="my-1 h-10 w-10 sm:h-12 sm:w-12 short:my-0 short:h-7 short:w-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={ICON[d.condition] ?? W.cloud} /></svg>
             <p className="sr-only">{fmtCondition(d.condition)}</p>
@@ -273,10 +274,16 @@ function Forecast({ now }: { now: Date }) {
 function ClockHero() {
   const now = useNow();
   const h24 = useSettings().data?.clock24h ?? true;
+  const ha = useHa().data;
+  const w = ha?.reachable ? ha.sensors.find((x) => x.id.startsWith("weather.")) : undefined;
+  const outside = w && Number.isFinite(Number(w.state)) ? `${w.condition ? fmtCondition(w.condition) + " · " : ""}${Math.round(Number(w.state) * 10) / 10}°` : null;
   return (
     <section className="card flex flex-col justify-center-safe landscape:min-h-0 landscape:overflow-y-auto" aria-label="Clock">
       <span className="text-[clamp(4rem,min(15vw,34vh),12rem)] font-black short:text-[min(15vw,30vh)] leading-none tabular-nums">{fmtTime(now, h24)}</span>
-      <span className="mt-2 text-[clamp(1.1rem,5vh,2rem)] font-bold text-dim">{now.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</span>
+      <p className="mt-2 flex flex-wrap items-baseline gap-x-4 text-[clamp(1.1rem,5vh,2rem)] font-bold">
+        <span className="text-dim">{now.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</span>
+        {outside && <span className="tabular-nums" aria-label={`Outside ${outside}`}>{outside}</span>}
+      </p>
       <Forecast now={now} />
     </section>
   );
@@ -336,8 +343,10 @@ export function Dashboard({ go }: { go: (p: string) => void }) {
       <ClockHero />
       <div className="flex flex-col gap-3 pr-2 pb-2 landscape:min-h-0 landscape:overflow-y-auto">
         <NowPlaying go={go} />
-        <HomeReadings />
-        <Shortcuts go={go} />
+        <div className="flex flex-col gap-3 short:flex-row short:items-stretch short:gap-2">
+          <HomeReadings />
+          <div className="min-w-0 flex-1"><Shortcuts go={go} /></div>
+        </div>
       </div>
     </div>
   );

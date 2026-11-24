@@ -50,10 +50,10 @@ function Login() {
   );
 }
 
-function Dot({ ok, label }: { ok: boolean | null; label: string }) {
+function Dot({ ok, label, big }: { ok: boolean | null; label: string; big?: boolean }) {
   return (
-    <span className="flex items-center gap-1.5 text-sm text-dim" title={label}>
-      <span className={`h-3 w-3 rounded-full border-2 border-line ${ok === null ? "bg-dim" : ok ? "bg-accent" : "bg-bad"}`} />
+    <span className={`flex items-center gap-1.5 ${big ? "text-base font-bold text-fg" : "text-sm text-dim"}`} title={label}>
+      <span className={`${big ? "h-4 w-4" : "h-3 w-3"} rounded-full border-2 border-line ${ok === null ? "bg-dim" : ok ? "bg-accent" : "bg-bad"}`} />
       {label}
     </span>
   );
@@ -73,6 +73,14 @@ function Shell({ path, go }: { path: string; go: (p: string) => void }) {
     try { localStorage.setItem("theme", theme); } catch { /* storage blocked */ }
   }, [theme]);
   const offline = sp.isError;
+  const lamps = [
+    { ok: !offline, label: "Server" },
+    { ok: sp.data ? sp.data.connected && !sp.data.error : null, label: "Spotify" },
+    { ok: ha.data?.configured ? ha.data.reachable : null, label: "Home" },
+    { ok: lab.data ? homelabIssues(lab.data).length === 0 : null, label: "Homelab" },
+  ];
+  const known = lamps.filter((l) => l.ok !== null);
+  const problems = known.length ? known.filter((l) => !l.ok).length : null; // unknown lamps are not problems
   const mod = moduleOf(path);
 
   const setFull = (on: boolean) => {
@@ -95,11 +103,11 @@ function Shell({ path, go }: { path: string; go: (p: string) => void }) {
     <div className="flex h-full flex-col">
       <header className="flex min-h-12 items-center justify-between gap-3 px-4 py-1">
         <span className="-rotate-2 border-[3px] border-line bg-accent px-2 text-xl font-black text-black shadow-[3px_3px_0_var(--color-line)]">Nexus</span>
-        <button className="flex min-h-11 flex-wrap items-center justify-end gap-x-3 rounded-lg px-2 active:bg-black/10" onClick={() => go("/homelab")} aria-label="System status, open Homelab">
-          <Dot ok={!offline} label="Server" />
-          <Dot ok={sp.data ? sp.data.connected && !sp.data.error : null} label="Spotify" />
-          <Dot ok={ha.data?.configured ? ha.data.reachable : null} label="Home" />
-          <Dot ok={lab.data ? homelabIssues(lab.data).length === 0 : null} label="Homelab" />
+        <button className="flex min-h-11 flex-wrap items-center justify-end gap-x-3 rounded-lg px-2 active:bg-black/10" onClick={() => go("/homelab")} aria-label={`System status: ${lamps.map((l) => `${l.label} ${l.ok === null ? "unknown" : l.ok ? "ok" : "problem"}`).join(", ")}. Open Homelab`}>
+          <span className="flex flex-wrap items-center justify-end gap-x-3 short:hidden">
+            {lamps.map((l) => <Dot key={l.label} {...l} />)}
+          </span>
+          <span className="hidden short:flex"><Dot ok={problems === null ? null : problems === 0} label={problems === null ? "Checking" : problems === 0 ? "All OK" : problems === 1 ? "1 problem" : `${problems} problems`} big /></span>
         </button>
       </header>
       {offline && <div role="alert" className="border-y-[3px] border-line bg-bad px-4 py-2 text-center font-bold text-white">Nexus server unreachable. Retrying...</div>}
