@@ -217,26 +217,39 @@ function HomeReadings() {
   );
 }
 
-const ICON: Record<string, string> = { sunny: "☀️", "clear-night": "🌙", partlycloudy: "⛅", cloudy: "☁️", fog: "🌫️", rainy: "🌧️", pouring: "🌧️", "lightning-rainy": "⛈️", lightning: "🌩️", snowy: "🌨️", "snowy-rainy": "🌨️", hail: "🌨️", windy: "💨", "windy-variant": "💨" };
+// Weather glyphs, same 24x24 / 2px stroke as the nav icons. Several HA conditions share one glyph.
+const W = {
+  sun: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4",
+  moon: "M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z",
+  cloud: "M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z",
+  part: "M12 2v2M4.9 4.9l1.4 1.4M2 11h2M19.1 4.9l-1.4 1.4M8 11a4 4 0 0 1 7.5-2M18 20H11a4 4 0 1 1 1.6-7.7A4.5 4.5 0 1 1 18 20z",
+  fog: "M5 7h14M3 12h18M5 17h14M9 21h6",
+  rain: "M20 16.2A4.5 4.5 0 0 0 17.5 8h-1.8A7 7 0 1 0 4 14.9M16 14v6M8 14v6M12 16v6",
+  storm: "M6 16.3A4.6 4.6 0 0 1 7 8h1.3a6 6 0 0 1 11.2 2 4.5 4.5 0 0 1-1 6.3M13 12l-3 5h4l-3 5",
+  snow: "M20 17.6A5 5 0 0 0 18 8h-1.3A7 7 0 1 0 4 16.3M8 15h.01M8 19h.01M12 17h.01M12 21h.01M16 15h.01M16 19h.01",
+  wind: "M9.6 4.6A2 2 0 1 1 11 8H2M12.6 19.4A2 2 0 1 0 14 16H2M17.7 7.7A2.5 2.5 0 1 1 19.5 12H2",
+};
+const ICON: Record<string, string> = { sunny: W.sun, "clear-night": W.moon, partlycloudy: W.part, cloudy: W.cloud, fog: W.fog, rainy: W.rain, pouring: W.rain, "lightning-rainy": W.storm, lightning: W.storm, snowy: W.snow, "snowy-rainy": W.snow, hail: W.snow, windy: W.wind, "windy-variant": W.wind };
 const deg = (v: number | null) => (v == null ? "–" : `${Math.round(v)}°`);
 
-// The next days from the first weather.* entity in HA_SENSORS.
+// The next days from the first weather.* entity in HA_SENSORS. Phones show 3 days, wider screens 5.
 function Forecast({ now }: { now: Date }) {
   const today = now.toDateString();
   const days = (useHa().data?.sensors.find((x) => x.id.startsWith("weather."))?.forecast ?? [])
     .filter((d) => new Date(d.date) >= new Date(today)).slice(0, 5); // drop days already past
   if (!days.length) return null;
   return (
-    <ul className="mt-[clamp(0.75rem,4vh,2rem)] grid grid-cols-5 gap-2" aria-label="Forecast">
-      {days.map((d) => {
+    <ul className="mt-[clamp(0.75rem,4vh,2rem)] grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-3" aria-label="Forecast">
+      {days.map((d, i) => {
         const t = new Date(d.date);
         return (
-          <li key={d.date} className="min-w-0 rounded-lg border-[3px] border-line bg-raised px-2 py-1 text-center">
-            <p className="truncate text-sm font-bold text-dim">{t.toDateString() === today ? "Today" : t.toLocaleDateString([], { weekday: "short" })}</p>
-            <p className="text-2xl leading-tight" aria-hidden>{ICON[d.condition] ?? "🌡️"}</p>
-            <p className="truncate text-xs font-bold">{fmtCondition(d.condition)}</p>
-            <p className="truncate font-black tabular-nums">{deg(d.high)} <span className="font-bold text-dim">{deg(d.low)}</span></p>
-            {!!d.rain && <p className="truncate text-xs font-bold text-dim">{fmtReading(String(d.rain))} mm</p>}
+          <li key={d.date} className={`min-w-0 flex-col items-center rounded-lg border-[3px] border-line bg-raised px-1 py-[clamp(0.5rem,2vh,1rem)] text-center ${i >= 3 ? "hidden sm:flex" : "flex"}`}>
+            <p className="text-lg font-black sm:text-xl">{t.toDateString() === today ? "Today" : t.toLocaleDateString([], { weekday: "short" })}</p>
+            <svg viewBox="0 0 24 24" className="my-1 h-10 w-10 sm:h-12 sm:w-12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={ICON[d.condition] ?? W.cloud} /></svg>
+            <p className="sr-only">{fmtCondition(d.condition)}</p>
+            <p className="text-3xl font-black leading-none tabular-nums sm:text-4xl"><span className="sr-only">High </span>{deg(d.high)}</p>
+            <p className="mt-1 text-xl font-bold leading-none text-dim tabular-nums sm:text-2xl"><span className="sr-only">Low </span><span aria-hidden>↓ </span>{deg(d.low)}</p>
+            <p className={`mt-1 text-base font-bold leading-none text-dim tabular-nums ${d.rain ? "" : "invisible"}`} aria-hidden={!d.rain}>{fmtReading(String(d.rain || 0))} mm</p>
           </li>
         );
       })}
@@ -248,7 +261,7 @@ function ClockHero() {
   const now = useNow();
   const h24 = useSettings().data?.clock24h ?? true;
   return (
-    <section className="card flex min-h-0 flex-col justify-center" aria-label="Clock">
+    <section className="card flex flex-col justify-center landscape:min-h-0" aria-label="Clock">
       <span className="text-[clamp(4rem,min(15vw,34vh),12rem)] font-black leading-none tabular-nums">{fmtTime(now, h24)}</span>
       <span className="mt-2 text-[clamp(1.1rem,5vh,2rem)] font-bold text-dim">{now.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</span>
       <Forecast now={now} />
@@ -306,9 +319,9 @@ export function Timers() {
 
 export function Dashboard({ go }: { go: (p: string) => void }) {
   return (
-    <div className="grid h-full gap-3 pr-2 pb-2 landscape:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] portrait:content-start">
+    <div className="grid gap-3 pr-2 pb-2 landscape:h-full landscape:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
       <ClockHero />
-      <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-2 pb-2">
+      <div className="flex flex-col gap-3 pr-2 pb-2 landscape:min-h-0 landscape:overflow-y-auto">
         <NowPlaying />
         <HomeReadings />
         <Shortcuts go={go} />
