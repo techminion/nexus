@@ -1,0 +1,10 @@
+{
+  "detector": {
+    "ignoreRules": [
+      "hard-offset-shadow",
+      "cream-palette"
+    ],
+    "ignoreFiles": [],
+    "ignoreValues": []
+  }
+}
