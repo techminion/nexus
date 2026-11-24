@@ -217,6 +217,33 @@ function HomeReadings() {
   );
 }
 
+const ICON: Record<string, string> = { sunny: "☀️", "clear-night": "🌙", partlycloudy: "⛅", cloudy: "☁️", fog: "🌫️", rainy: "🌧️", pouring: "🌧️", "lightning-rainy": "⛈️", lightning: "🌩️", snowy: "🌨️", "snowy-rainy": "🌨️", hail: "🌨️", windy: "💨", "windy-variant": "💨" };
+const deg = (v: number | null) => (v == null ? "–" : `${Math.round(v)}°`);
+
+// The next days from the first weather.* entity in HA_SENSORS.
+function Forecast({ now }: { now: Date }) {
+  const today = now.toDateString();
+  const days = (useHa().data?.sensors.find((x) => x.id.startsWith("weather."))?.forecast ?? [])
+    .filter((d) => new Date(d.date) >= new Date(today)).slice(0, 5); // drop days already past
+  if (!days.length) return null;
+  return (
+    <ul className="mt-[clamp(0.75rem,4vh,2rem)] grid grid-cols-5 gap-2" aria-label="Forecast">
+      {days.map((d) => {
+        const t = new Date(d.date);
+        return (
+          <li key={d.date} className="min-w-0 rounded-lg border-[3px] border-line bg-raised px-2 py-1 text-center">
+            <p className="truncate text-sm font-bold text-dim">{t.toDateString() === today ? "Today" : t.toLocaleDateString([], { weekday: "short" })}</p>
+            <p className="text-2xl leading-tight" aria-hidden>{ICON[d.condition] ?? "🌡️"}</p>
+            <p className="truncate text-xs font-bold">{fmtCondition(d.condition)}</p>
+            <p className="truncate font-black tabular-nums">{deg(d.high)} <span className="font-bold text-dim">{deg(d.low)}</span></p>
+            {!!d.rain && <p className="truncate text-xs font-bold text-dim">{fmtReading(String(d.rain))} mm</p>}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function ClockHero() {
   const now = useNow();
   const h24 = useSettings().data?.clock24h ?? true;
@@ -224,6 +251,7 @@ function ClockHero() {
     <section className="card flex min-h-0 flex-col justify-center" aria-label="Clock">
       <span className="text-[clamp(4rem,min(15vw,34vh),12rem)] font-black leading-none tabular-nums">{fmtTime(now, h24)}</span>
       <span className="mt-2 text-[clamp(1.1rem,5vh,2rem)] font-bold text-dim">{now.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</span>
+      <Forecast now={now} />
     </section>
   );
 }

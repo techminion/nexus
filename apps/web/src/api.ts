@@ -82,7 +82,8 @@ export interface Homelab {
   error: string | null;
   hosts: { name: string; target: string; up: boolean; latencyMs: number | null }[];
 }
-export interface HaStatus { configured: boolean; reachable: boolean; error: string | null; voice?: boolean; sensors: { id: string; name: string; state: string; unit: string | null; condition?: string }[] }
+export interface HaStatus { configured: boolean; reachable: boolean; error: string | null; voice?: boolean; sensors: { id: string; name: string; state: string; unit: string | null; condition?: string; forecast?: ForecastDay[] }[] }
+export interface ForecastDay { date: string; condition: string; high: number | null; low: number | null; rain: number | null }
 
 export interface StudioCamera { name: string; path: string; live: boolean; onDemand: boolean; viewers: number }
 export interface StudioStatus { configured: boolean; reachable: boolean; error: string | null; publishUrl: string | null; cameras: StudioCamera[] }

@@ -119,6 +119,7 @@ test("homelab and ha status: auth, graceful absence, no token leak; announce cal
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (u: any, init: any) => {
     calls.push({ url: String(u), init });
+    if (String(u).includes("/api/services/weather/get_forecasts")) return Response.json({ service_response: { "weather.home": { forecast: [{ datetime: "2026-11-24T06:30:00+00:00", condition: "rainy", temperature: 33.4, templow: 25.4, precipitation: 3.5 }, { datetime: "bad" }] } } });
     if (String(u).includes("/api/states/weather.home")) return Response.json({ state: "sunny", attributes: { friendly_name: "Home", temperature: 32.5, temperature_unit: "°C" } });
     if (String(u).includes("/api/states/")) return Response.json({ state: "21.5", attributes: { friendly_name: "Echo temp", unit_of_measurement: "C" } });
     return Response.json([]);
@@ -126,7 +127,7 @@ test("homelab and ha status: auth, graceful absence, no token leak; announce cal
   try {
     const st = await app.inject({ url: "/api/ha/status", cookies });
     assert.equal(st.statusCode, 200);
-    assert.deepEqual(st.json().sensors, [{ id: "sensor.echo_temp", name: "Echo temp", state: "21.5", unit: "C" }, { id: "weather.home", name: "Home", state: "32.5", unit: "°C", condition: "sunny" }]);
+    assert.deepEqual(st.json().sensors, [{ id: "sensor.echo_temp", name: "Echo temp", state: "21.5", unit: "C" }, { id: "weather.home", name: "Home", state: "32.5", unit: "°C", condition: "sunny", forecast: [{ date: "2026-11-24T06:30:00+00:00", condition: "rainy", high: 33.4, low: 25.4, rain: 3.5 }] }]);
     assert.ok(!st.body.includes(token));
     calls.length = 0;
     const a = await app.inject({ method: "POST", url: "/api/ha/announce", cookies, payload: { message: "Dinner" } });
