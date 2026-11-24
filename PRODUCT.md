@@ -29,8 +29,9 @@ through Home Assistant, the author's servers and VPS, OBS, and a Mac. Shortcuts 
 
 ## Operating Context
 
-- **The main screen** is a landscape Android tablet on the desk, running Fully Kiosk Browser. It is always on, read
-  from a seat away, and tapped briefly.
+- **The main screen** is a Redmi Note 10 Pro phone on the desk, in landscape, running Fully Kiosk Browser: a
+  **970×436 CSS-pixel** viewport (1080×2400 at density 396, device pixel ratio about 2.475). It is always on, read
+  from a seat away, and tapped briefly. Every design check and critique is judged on this screen first.
 - **Phones and laptop browsers** use it often too, so every page must work at phone width, on a tablet in landscape,
   and on a desktop browser.
 - It is reached over HTTPS on the home network (Caddy, with a local certificate authority) and behind one password.

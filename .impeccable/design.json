@@ -326,7 +326,7 @@
       },
       {
         "name": "The Kiosk First Rule",
-        "body": "Design at a landscape tablet (1280×800) first, then check a phone (390px wide) and a laptop. Nothing may need hover. Nothing may scroll sideways.",
+        "body": "Design at the Redmi kiosk (landscape, 970×436 CSS pixels) first, then check a tablet (1280×800), a phone (390px wide) and a laptop. Nothing may need hover. Nothing may scroll sideways.",
         "section": "layout"
       },
       {

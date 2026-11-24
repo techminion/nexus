@@ -190,10 +190,12 @@ Pages are grids of cards with gaps of 8px to 12px. The dashboard in landscape is
 fills the tall left column, and the right column stacks Now Playing, the readings and the shortcuts, scrolling if
 needed. In portrait, everything stacks in a single column. Card padding is 16px and the spacing scale is
 4/8/12/16/24px. Large type sizes use `clamp()` against both `vw` and `vh`, so the clock fits on a short landscape
-tablet and on a tall phone.
+tablet and on a tall phone. The `short` variant (landscape and at most 600px tall, defined in `index.css`) tightens
+the dashboard for the Redmi kiosk. A card may grow into spare height but never shrinks below its content. When space
+runs out, its column scrolls.
 
-**The Kiosk First Rule.** Design at a landscape tablet (1280×800) first, then check a phone (390px wide) and a laptop.
-Nothing may need hover. Nothing may scroll sideways.
+**The Kiosk First Rule.** Design at the Redmi kiosk (landscape, 970×436 CSS pixels) first, then check a tablet (1280×800), a phone
+(390px wide) and a laptop. Nothing may need hover. Nothing may scroll sideways.
 
 ## Elevation & Depth
 
