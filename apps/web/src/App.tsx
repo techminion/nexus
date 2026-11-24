@@ -81,6 +81,9 @@ function Shell({ path, go }: { path: string; go: (p: string) => void }) {
   ];
   const known = lamps.filter((l) => l.ok !== null);
   const problems = known.length ? known.filter((l) => !l.ok).length : null; // unknown lamps are not problems
+  const failing = known.filter((l) => !l.ok);
+  const PLAIN: Record<string, string> = { Server: "Server unreachable", Spotify: "Spotify down", Home: "Home offline", Homelab: "Homelab problem" };
+  const summary = problems === null ? "Checking" : problems === 0 ? "All OK" : problems === 1 ? PLAIN[failing[0].label] : `${problems} problems`;
   const mod = moduleOf(path);
 
   const setFull = (on: boolean) => {
@@ -107,15 +110,17 @@ function Shell({ path, go }: { path: string; go: (p: string) => void }) {
           <span className="flex flex-wrap items-center justify-end gap-x-3 short:hidden">
             {lamps.map((l) => <Dot key={l.label} {...l} />)}
           </span>
-          <span className="hidden short:flex"><Dot ok={problems === null ? null : problems === 0} label={problems === null ? "Checking" : problems === 0 ? "All OK" : problems === 1 ? "1 problem" : `${problems} problems`} big /></span>
+          <span className="hidden short:flex"><Dot ok={problems === null ? null : problems === 0} label={summary} big /></span>
+          <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M9 6l6 6-6 6" /></svg>
         </button>
       </header>
       {offline && <div role="alert" className="border-y-[3px] border-line bg-bad px-4 py-2 text-center font-bold text-white">Nexus server unreachable. Retrying...</div>}
       <div className="flex min-h-0 flex-1 portrait:flex-col-reverse">
-        <nav className="flex gap-2 p-2 landscape:flex-col landscape:justify-center landscape:gap-1 landscape:overflow-y-auto portrait:justify-around" aria-label="Main">
+        <nav className="flex gap-2 p-2 portrait:gap-1 portrait:p-1 landscape:flex-col landscape:justify-center landscape:gap-1 landscape:overflow-y-auto portrait:justify-around" aria-label="Main">
           {NAV.map((n) => (
-            <button key={n.id} onClick={() => go(n.path)} aria-current={mod === n.id} aria-label={n.label} title={n.label} className={`btn px-3 ${mod === n.id ? "btn-accent" : ""}`}>
+            <button key={n.id} onClick={() => go(n.path)} aria-current={mod === n.id} aria-label={n.label} title={n.label} className={`btn flex-col gap-0 ${mod === n.id ? "btn-accent shrink-0 px-1" : "px-3"} landscape:w-[4.5rem] landscape:px-1`}>
               <Icon d={n.icon} stroke />
+              {mod === n.id && <span className="text-xs leading-none">{n.label}</span>}
             </button>
           ))}
         </nav>

@@ -18,11 +18,14 @@ const I = {
   repeat: "M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3",
 };
 
+type ControlCall = { method: string; path: string; body?: unknown; patch?: Partial<Playback> };
+
 /** Control hook: optimistic patch of the cached playback, rollback + error message on failure. */
 function useControl() {
   const qc = useQueryClient();
+  const [fail, setFail] = useState<{ message: string; code: string; v: ControlCall } | null>(null);
   const m = useMutation({
-    mutationFn: (v: { method: string; path: string; body?: unknown; patch?: Partial<Playback> }) => api(v.method, v.path, v.body),
+    mutationFn: (v: ControlCall) => api(v.method, v.path, v.body),
     onMutate: async (v) => {
       await qc.cancelQueries({ queryKey: ["spotify"] });
       const prev = qc.getQueryData<SpotifyState>(["spotify"]);
@@ -30,22 +33,19 @@ function useControl() {
       return { prev };
     },
     // Roll back only the fields this mutation changed, and only if nothing newer has overwritten them.
-    onError: (_e, v, c) => {
+    onError: (e, v, c) => {
+      setFail({ message: e.message, code: e instanceof ApiError ? e.code : "", v });
       const cur = qc.getQueryData<SpotifyState>(["spotify"]);
       if (!cur?.playback || !c?.prev?.playback || !v.patch) return;
       const pb: Record<string, unknown> = { ...cur.playback };
       for (const k of Object.keys(v.patch) as (keyof Playback)[]) if (cur.playback[k] === v.patch[k]) pb[k] = c.prev.playback[k];
       qc.setQueryData<SpotifyState>(["spotify"], { ...cur, playback: pb as unknown as Playback });
     },
+    onSuccess: () => setFail(null),
     onSettled: () => void setTimeout(() => qc.invalidateQueries({ queryKey: ["spotify"] }), 500),
   });
-  const { isError, error, reset } = m;
-  useEffect(() => {
-    if (!isError) return;
-    const t = setTimeout(reset, 5000); // a failed control explains itself briefly, then gets out of the way
-    return () => clearTimeout(t);
-  }, [isError, error, reset]);
-  return { run: m.mutate, error: isError ? { message: error.message, code: error instanceof ApiError ? error.code : "" } : null };
+  // A failed control stays on screen until the next control succeeds or the user retries it.
+  return { run: m.mutate, error: fail, retry: () => fail && m.mutate(fail.v) };
 }
 
 function Notice({ children }: { children: ReactNode }) {
@@ -118,7 +118,9 @@ function NowPlaying({ stack, go }: { stack?: boolean; go?: (p: string) => void }
   const repeatBtn = <button className={`btn ${p.repeat !== "off" ? "btn-accent" : ""}`} aria-label={`Repeat ${p.repeat}`} onClick={() => run({ method: "PUT", path: "/api/spotify/repeat", body: { state: next }, patch: { repeat: next } })}><Icon d={I.repeat} stroke />{p.repeat === "track" && "1"}</button>;
   const volume = p.volume !== null && <VolumeSlider volume={p.volume} onSet={(v) => run({ method: "PUT", path: "/api/spotify/volume", body: { percent: v }, patch: { volume: v } })} />;
   // The dashboard keeps showing the last played song when no device is active, so "no device" needs no message there.
-  const err = ctl.error && (stack || ctl.error.code !== "no_device") && <p role="alert" className="truncate text-sm font-bold text-dim">{ctl.error.message}</p>;
+  const shown = ctl.error && (stack || ctl.error.code !== "no_device") ? ctl.error : null;
+  const retryBtn = shown && <button className="btn shrink-0" onClick={ctl.retry}>Retry</button>;
+  const msg = shown && <p role="alert" className="flex min-w-0 items-center gap-1.5 text-sm font-bold"><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-bad" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={W.alert} /></svg><span className="truncate">{shown.message}</span></p>;
   if (stack)
     return (
       <section className="card flex min-h-0 flex-col justify-center gap-2 overflow-y-auto" aria-label="Now playing">
@@ -134,24 +136,27 @@ function NowPlaying({ stack, go }: { stack?: boolean; go?: (p: string) => void }
         {progress}
         <div className="flex items-center justify-center gap-3">{shuffleBtn}{transport}{repeatBtn}</div>
         {volume}
-        {err}
+        {shown && <div className="flex items-center justify-between gap-2">{msg}{retryBtn}</div>}
       </section>
     );
   return (
-    <section className="card flex min-w-0 shrink-0 flex-col gap-1 landscape:flex-1 landscape:justify-center landscape:gap-3 short:justify-center short:gap-2 short:p-2" aria-label="Now playing">
-      <div className="flex min-w-0 items-center gap-3">
-        {p.art ? <img src={p.art} alt="" className="aspect-square w-[clamp(3.5rem,16vh,5.5rem)] shrink-0 rounded-lg frame object-cover landscape:w-[clamp(5rem,24vh,10rem)] short:w-14" /> : <div className="aspect-square w-[clamp(3.5rem,16vh,5.5rem)] shrink-0 rounded-lg frame bg-raised landscape:w-[clamp(5rem,24vh,10rem)] short:w-14" />}
+    <section className="card flex min-w-0 shrink-0 flex-col gap-1 landscape:flex-1 landscape:justify-center landscape:gap-3 short:justify-start short:gap-1.5 short:p-2" aria-label="Now playing">
+      {/* On short screens this row takes the spare height and the cover (square, absolutely filled) grows with it. */}
+      <div className="flex min-w-0 items-center gap-3 short:flex-1">
+        <div className="relative aspect-square w-[clamp(3.5rem,16vh,5.5rem)] shrink-0 overflow-hidden rounded-lg frame bg-raised landscape:w-[clamp(5rem,24vh,10rem)] short:h-full short:min-h-14 short:max-h-28 short:w-auto">
+          {p.art && <img src={p.art} alt="" className="absolute inset-0 h-full w-full object-cover" />}
+        </div>
         <div className="min-w-0 flex-1">
-          <p className="line-clamp-2 text-lg font-bold leading-tight landscape:text-2xl short:text-xl">{p.track ?? "Unknown"}</p>
-          <p className={`truncate text-dim landscape:text-lg short:text-base ${err ? "short:hidden" : ""}`}>{p.artists.join(", ")}</p>
-          {err && <div className="hidden short:block">{err}</div>}
+          <p className="line-clamp-2 text-lg font-bold leading-tight landscape:text-2xl short:text-lg">{p.track ?? "Unknown"}</p>
+          <p className={`truncate text-dim landscape:text-lg short:text-sm ${shown ? "short:hidden" : ""}`}>{p.artists.join(", ")}</p>
+          {shown && <div className="hidden short:block">{msg}</div>}
           {p.device && <p className="truncate text-sm text-dim short:hidden">on {p.device}</p>}
         </div>
         {likeBtn}
       </div>
       {progress}
-      <div className="flex items-center justify-center gap-3">{transport}</div>
-      {err && <div className="short:hidden">{err}</div>}
+      <div className="flex items-center justify-center gap-3">{transport}{retryBtn}</div>
+      {shown && <div className="short:hidden">{msg}</div>}
     </section>
   );
 }
@@ -284,9 +289,11 @@ function ClockHero() {
   return (
     <section className="card flex flex-col justify-center-safe landscape:min-h-0 landscape:overflow-y-auto" aria-label="Clock">
       <span className="text-[clamp(4rem,min(15vw,34vh),12rem)] font-black short:text-[min(15vw,30vh)] leading-none tabular-nums">{fmtTime(now, h24)}</span>
-      <p className="mt-2 flex flex-wrap items-baseline gap-x-4 text-[clamp(1.1rem,5vh,2rem)] font-bold">
-        <span className="text-dim">{now.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</span>
-        {outside && <span className="tabular-nums" aria-label={`Outside ${outside}`}>{outside}</span>}
+      {/* On the Redmi the line must stay one row: a wrapped line pushes the forecast out of the card. */}
+      <p className="mt-2 flex flex-wrap items-baseline gap-x-4 text-[clamp(1.1rem,5vh,2rem)] font-bold short:flex-nowrap short:overflow-hidden">
+        <span className="text-dim short:hidden">{now.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</span>
+        <span className="hidden shrink-0 text-dim short:inline">{now.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" })}</span>
+        {outside && <span className="min-w-0 tabular-nums short:truncate" aria-label={`Outside ${outside}`}>{outside}</span>}
       </p>
       <Forecast now={now} />
     </section>
@@ -345,7 +352,7 @@ export function Dashboard({ go }: { go: (p: string) => void }) {
   return (
     <div className="grid gap-3 pr-2 pb-2 landscape:h-full landscape:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
       <ClockHero />
-      <div className="flex flex-col gap-3 pr-2 pb-2 landscape:min-h-0 landscape:overflow-y-auto">
+      <div className="flex flex-col gap-3 pr-2 pb-2 landscape:min-h-0 landscape:overflow-y-auto short:gap-2">
         <NowPlaying go={go} />
         <div className="flex flex-col gap-3 short:flex-row short:items-stretch short:gap-2">
           <HomeReadings />
