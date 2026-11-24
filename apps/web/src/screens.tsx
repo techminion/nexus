@@ -143,14 +143,15 @@ function NowPlaying({ stack, go }: { stack?: boolean; go?: (p: string) => void }
         {p.art ? <img src={p.art} alt="" className="aspect-square w-[clamp(3.5rem,16vh,5.5rem)] shrink-0 rounded-lg frame object-cover landscape:w-[clamp(5rem,24vh,10rem)] short:w-14" /> : <div className="aspect-square w-[clamp(3.5rem,16vh,5.5rem)] shrink-0 rounded-lg frame bg-raised landscape:w-[clamp(5rem,24vh,10rem)] short:w-14" />}
         <div className="min-w-0 flex-1">
           <p className="line-clamp-2 text-lg font-bold leading-tight landscape:text-2xl short:text-xl">{p.track ?? "Unknown"}</p>
-          <p className="truncate text-dim landscape:text-lg short:text-base">{p.artists.join(", ")}</p>
+          <p className={`truncate text-dim landscape:text-lg short:text-base ${err ? "short:hidden" : ""}`}>{p.artists.join(", ")}</p>
+          {err && <div className="hidden short:block">{err}</div>}
           {p.device && <p className="truncate text-sm text-dim short:hidden">on {p.device}</p>}
         </div>
         {likeBtn}
       </div>
       {progress}
       <div className="flex items-center justify-center gap-3">{transport}</div>
-      {err}
+      {err && <div className="short:hidden">{err}</div>}
     </section>
   );
 }
@@ -242,14 +243,17 @@ const W = {
   storm: "M6 16.3A4.6 4.6 0 0 1 7 8h1.3a6 6 0 0 1 11.2 2 4.5 4.5 0 0 1-1 6.3M13 12l-3 5h4l-3 5",
   snow: "M20 17.6A5 5 0 0 0 18 8h-1.3A7 7 0 1 0 4 16.3M8 15h.01M8 19h.01M12 17h.01M12 21h.01M16 15h.01M16 19h.01",
   wind: "M9.6 4.6A2 2 0 1 1 11 8H2M12.6 19.4A2 2 0 1 0 14 16H2M17.7 7.7A2.5 2.5 0 1 1 19.5 12H2",
+  alert: "M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01",
 };
-const ICON: Record<string, string> = { sunny: W.sun, "clear-night": W.moon, partlycloudy: W.part, cloudy: W.cloud, fog: W.fog, rainy: W.rain, pouring: W.rain, "lightning-rainy": W.storm, lightning: W.storm, snowy: W.snow, "snowy-rainy": W.snow, hail: W.snow, windy: W.wind, "windy-variant": W.wind };
+const ICON: Record<string, string> = { sunny: W.sun, "clear-night": W.moon, partlycloudy: W.part, cloudy: W.cloud, fog: W.fog, rainy: W.rain, pouring: W.rain, "lightning-rainy": W.storm, lightning: W.storm, snowy: W.snow, "snowy-rainy": W.snow, hail: W.snow, windy: W.wind, "windy-variant": W.wind, exceptional: W.alert };
 const deg = (v: number | null) => (v == null ? "–" : `${Math.round(v)}°`);
 
 // The next days from the first weather.* entity in HA_SENSORS. Phones show 3 days, wider screens 5.
 function Forecast({ now }: { now: Date }) {
   const today = now.toDateString();
-  const days = (useHa().data?.sensors.find((x) => x.id.startsWith("weather."))?.forecast ?? [])
+  const w = useHa().data?.sensors.find((x) => x.id.startsWith("weather."));
+  const rainUnit = w?.rainUnit ?? "mm";
+  const days = (w?.forecast ?? [])
     .filter((d) => new Date(d.date) >= new Date(today)).slice(0, 5); // drop days already past
   if (!days.length) return null;
   return (
@@ -263,7 +267,7 @@ function Forecast({ now }: { now: Date }) {
             <p className="sr-only">{fmtCondition(d.condition)}</p>
             <p className="text-3xl font-black leading-none tabular-nums sm:text-4xl short:text-2xl"><span className="sr-only">High </span>{deg(d.high)}</p>
             <p className="mt-1 text-xl font-bold leading-none text-dim tabular-nums sm:text-2xl short:text-lg"><span className="sr-only">Low </span><span aria-hidden>↓ </span>{deg(d.low)}</p>
-            <p className={`mt-1 text-base font-bold leading-none text-dim tabular-nums short:text-sm ${d.rain ? "" : "invisible"}`} aria-hidden={!d.rain}>{fmtReading(String(d.rain || 0))} mm</p>
+            <p className={`mt-1 text-base font-bold leading-none text-dim tabular-nums short:text-sm ${d.rain ? "" : "invisible"}`} aria-hidden={!d.rain}>{fmtReading(String(d.rain || 0))} {rainUnit}</p>
           </li>
         );
       })}
@@ -276,7 +280,7 @@ function ClockHero() {
   const h24 = useSettings().data?.clock24h ?? true;
   const ha = useHa().data;
   const w = ha?.reachable ? ha.sensors.find((x) => x.id.startsWith("weather.")) : undefined;
-  const outside = w && Number.isFinite(Number(w.state)) ? `${w.condition ? fmtCondition(w.condition) + " · " : ""}${Math.round(Number(w.state) * 10) / 10}°` : null;
+  const outside = w && w.state.trim() !== "" && Number.isFinite(Number(w.state)) ? `${w.condition ? fmtCondition(w.condition) + " · " : ""}${Math.round(Number(w.state) * 10) / 10}°` : null;
   return (
     <section className="card flex flex-col justify-center-safe landscape:min-h-0 landscape:overflow-y-auto" aria-label="Clock">
       <span className="text-[clamp(4rem,min(15vw,34vh),12rem)] font-black short:text-[min(15vw,30vh)] leading-none tabular-nums">{fmtTime(now, h24)}</span>

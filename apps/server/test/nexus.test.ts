@@ -127,7 +127,7 @@ test("homelab and ha status: auth, graceful absence, no token leak; announce cal
   try {
     const st = await app.inject({ url: "/api/ha/status", cookies });
     assert.equal(st.statusCode, 200);
-    assert.deepEqual(st.json().sensors, [{ id: "sensor.echo_temp", name: "Echo temp", state: "21.5", unit: "C" }, { id: "weather.home", name: "Home", state: "32.5", unit: "°C", condition: "sunny", forecast: [{ date: "2026-11-24T06:30:00+00:00", condition: "rainy", high: 33.4, low: 25.4, rain: 3.5 }] }]);
+    assert.deepEqual(st.json().sensors, [{ id: "sensor.echo_temp", name: "Echo temp", state: "21.5", unit: "C" }, { id: "weather.home", name: "Home", state: "32.5", unit: "°C", condition: "sunny", rainUnit: null, forecast: [{ date: "2026-11-24T06:30:00+00:00", condition: "rainy", high: 33.4, low: 25.4, rain: 3.5 }] }]);
     assert.ok(!st.body.includes(token));
     calls.length = 0;
     const a = await app.inject({ method: "POST", url: "/api/ha/announce", cookies, payload: { message: "Dinner" } });
@@ -154,6 +154,37 @@ test("homelab and ha status: auth, graceful absence, no token leak; announce cal
   assert.equal((await bare.inject({ url: "/api/ha/status", cookies: c2 })).json().configured, false);
   assert.equal((await bare.inject({ method: "POST", url: "/api/ha/announce", cookies: c2, payload: { message: "x" } })).statusCode, 503);
   await bare.close();
+});
+
+test("HA forecast: shared request, malformed reply keeps the last good one, 30 min cache, 5 min retry", async () => {
+  const realFetch = globalThis.fetch, realNow = Date.now;
+  let now = 1_000_000, calls = 0, reply: unknown = { service_response: { "weather.home": { forecast: [{ datetime: "bad" }, { datetime: "2026-11-24T06:30:00+00:00", condition: "rainy", temperature: 30, templow: 25, precipitation: 0.5 }] } } };
+  Date.now = () => now;
+  globalThis.fetch = async (u: any) => {
+    if (String(u).includes("get_forecasts")) { calls++; return Response.json(reply); }
+    if (String(u).includes("/api/states/")) return Response.json({ state: "rainy", attributes: { temperature: 30, precipitation_unit: "in" } });
+    return Response.json({});
+  };
+  const fc = async (ha: ReturnType<typeof createHomeAssistant>) => ((await ha.status()) as { sensors: { forecast?: { high: number }[]; rainUnit?: string }[] }).sensors[0];
+  try {
+    const ha = createHomeAssistant({ url: "http://ha:8123", token: "t", sensors: "weather.home,weather.home" });
+    const first = await fc(ha);
+    assert.equal(first.rainUnit, "in");
+    assert.deepEqual(first.forecast!.map((d) => d.high), [30]); // bad date dropped before the cap
+    assert.equal(calls, 1); // duplicate entity in HA_SENSORS: one request
+    reply = { service_response: {} }; // malformed 200
+    now += 31 * 60_000;
+    assert.deepEqual((await fc(ha)).forecast!.map((d) => d.high), [30]); // last good kept
+    assert.equal(calls, 2);
+    now += 4 * 60_000 + 11_000; // still inside the 5 min retry window
+    await fc(ha);
+    assert.equal(calls, 2);
+    now += 60_000;
+    await fc(ha);
+    assert.equal(calls, 3); // retried after 5 min
+  } finally {
+    globalThis.fetch = realFetch; Date.now = realNow;
+  }
 });
 
 test("HA adapter: origin-only URL, no redirects, real reachability without sensors", async () => {

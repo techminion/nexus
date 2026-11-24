@@ -74,7 +74,7 @@ function Shell({ path, go }: { path: string; go: (p: string) => void }) {
   }, [theme]);
   const offline = sp.isError;
   const lamps = [
-    { ok: !offline, label: "Server" },
+    { ok: offline ? false : sp.data ? true : null, label: "Server" },
     { ok: sp.data ? sp.data.connected && !sp.data.error : null, label: "Spotify" },
     { ok: ha.data?.configured ? ha.data.reachable : null, label: "Home" },
     { ok: lab.data ? homelabIssues(lab.data).length === 0 : null, label: "Homelab" },

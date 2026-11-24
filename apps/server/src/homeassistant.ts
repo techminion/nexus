@@ -8,13 +8,14 @@ const EVENT_ENTITY = /^event\.[a-z0-9_]+$/;
 
 export function createHomeAssistant(cfg: HaCfg, warn: (m: string) => void = () => {}) {
   const url = /^https?:\/\/[^/?#]+$/.test(cfg.url?.replace(/\/$/, "") ?? "") ? cfg.url!.replace(/\/$/, "") : (cfg.url && warn("HA_URL: must be an http(s) origin, HA disabled"), undefined);
-  const sensors = (cfg.sensors ?? "").split(",").map((s) => s.trim()).filter((s) => s && (ENTITY.test(s) || (warn(`HA_SENSORS: ignoring "${s}"`), false)));
+  const sensors = [...new Set((cfg.sensors ?? "").split(",").map((s) => s.trim()).filter((s) => s && (ENTITY.test(s) || (warn(`HA_SENSORS: ignoring "${s}"`), false))))];
   const entity = cfg.announceEntity && (NOTIFY_ENTITY.test(cfg.announceEntity) || (warn("HA_ANNOUNCE_ENTITY: must be notify.<name>, announce disabled"), false)) ? cfg.announceEntity : undefined;
   const voice = cfg.voiceEntity && (EVENT_ENTITY.test(cfg.voiceEntity) || (warn("HA_VOICE_ENTITY: must be event.<name>, voice commands disabled"), false)) ? cfg.voiceEntity : undefined;
   const configured = !!(url && cfg.token);
   let cache: { at: number; value: unknown } | undefined;
   let polling: Promise<unknown> | undefined;
   const forecasts = new Map<string, { at: number; days: Day[] }>();
+  const fetching = new Map<string, Promise<Day[]>>(); // one request per entity, even across overlapping polls
 
   const call = async (method: string, path: string, body?: unknown) => {
     let r: Response;
@@ -85,22 +86,35 @@ export function createHomeAssistant(cfg: HaCfg, warn: (m: string) => void = () =
 
   // Daily forecast (HA 2024.3+ only gives it through a service call). Refreshed every 30 min; a failure keeps
   // the last one, so it never makes Home Assistant look down.
-  async function forecast(id: string): Promise<Day[]> {
+  function forecast(id: string): Promise<Day[]> {
     const c = forecasts.get(id);
-    if (c && Date.now() - c.at < 30 * 60_000) return c.days;
+    if (c && Date.now() - c.at < 30 * 60_000) return Promise.resolve(c.days);
+    let p = fetching.get(id);
+    if (!p) {
+      p = fetchForecast(id).finally(() => fetching.delete(id));
+      fetching.set(id, p);
+    }
+    return p;
+  }
+
+  async function fetchForecast(id: string): Promise<Day[]> {
     try {
       const r = await call("POST", "/api/services/weather/get_forecasts?return_response", { entity_id: id, type: "daily" });
       if (!r.ok) throw new Error(String(r.status));
-      const list = ((await r.json()) as { service_response?: Record<string, { forecast?: unknown }> }).service_response?.[id]?.forecast;
+      const list = ((await r.json()) as { service_response?: Record<string, { forecast?: unknown }> } | null)?.service_response?.[id]?.forecast;
+      if (!Array.isArray(list)) throw new Error("no forecast in the response"); // malformed: keep the last good one
       const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
-      const days = (Array.isArray(list) ? list : []).slice(0, 7).flatMap((f: Record<string, unknown>) =>
-        typeof f?.datetime === "string" && !Number.isNaN(Date.parse(f.datetime))
-          ? [{ date: f.datetime, condition: String(f.condition ?? ""), high: num(f.temperature), low: num(f.templow), rain: num(f.precipitation) }] : []);
+      const days = list.flatMap((f: unknown) => {
+        const o = f && typeof f === "object" ? (f as Record<string, unknown>) : {};
+        return typeof o.datetime === "string" && !Number.isNaN(Date.parse(o.datetime))
+          ? [{ date: o.datetime, condition: String(o.condition ?? ""), high: num(o.temperature), low: num(o.templow), rain: num(o.precipitation) }] : [];
+      }).slice(0, 7);
       forecasts.set(id, { at: Date.now(), days });
       return days;
     } catch {
-      forecasts.set(id, { at: Date.now() - 25 * 60_000, days: c?.days ?? [] }); // retry in 5 min
-      return c?.days ?? [];
+      const last = forecasts.get(id)?.days ?? [];
+      forecasts.set(id, { at: Date.now() - 25 * 60_000, days: last }); // retry in 5 min
+      return last;
     }
   }
 
@@ -114,11 +128,13 @@ export function createHomeAssistant(cfg: HaCfg, warn: (m: string) => void = () =
         const r = await call("GET", `/api/states/${id}`);
         if (r.status === 404) return null;
         if (!r.ok) throw new AppError(502, "ha", `Home Assistant returned ${r.status}.`);
-        const j = (await r.json()) as { state?: unknown; attributes?: { friendly_name?: unknown; unit_of_measurement?: unknown; temperature?: unknown; temperature_unit?: unknown } };
-        const a = j.attributes ?? {};
+        const body: unknown = await r.json().catch(() => null);
+        if (!body || typeof body !== "object" || Array.isArray(body)) return null; // not a state object: skip this one sensor
+        const j = body as { state?: unknown; attributes?: { friendly_name?: unknown; unit_of_measurement?: unknown; temperature?: unknown; temperature_unit?: unknown; precipitation_unit?: unknown } };
+        const a = j.attributes && typeof j.attributes === "object" ? j.attributes : {};
         const name = String(a.friendly_name ?? id);
         // Weather entities keep the condition ("sunny") as state and the temperature as an attribute.
-        if (id.startsWith("weather.")) return { id, name, state: String(a.temperature ?? ""), unit: a.temperature_unit ? String(a.temperature_unit) : null, condition: String(j.state ?? ""), forecast: await forecast(id) };
+        if (id.startsWith("weather.")) return { id, name, state: String(a.temperature ?? ""), unit: a.temperature_unit ? String(a.temperature_unit) : null, condition: String(j.state ?? ""), rainUnit: a.precipitation_unit ? String(a.precipitation_unit) : null, forecast: await forecast(id) };
         return { id, name, state: String(j.state ?? ""), unit: a.unit_of_measurement ? String(a.unit_of_measurement) : null };
       }));
       value = { configured: true, reachable: true, error: null, sensors: got.filter((x) => x), voice: !!voice };
