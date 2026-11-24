@@ -2,6 +2,9 @@
 
 /* Neobrutalism: thick outlines and hard offset shadows. Each colour is light-dark(light, dark);
    the root color-scheme (set from the Theme setting) picks one, and "system" follows the device. */
+/* A landscape screen too short for the full dashboard, e.g. a phone used as the kiosk (970x436). */
+@custom-variant short (@media (orientation: landscape) and (max-height: 600px));
+
 @theme {
   --color-bg: light-dark(#fdf3dc, #111111);
   --color-surface: light-dark(#ffffff, #1c1c1c);

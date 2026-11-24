@@ -82,23 +82,29 @@ function Progress({ p, at, onSeek }: { p: Playback; at: number; onSeek: (ms: num
   );
 }
 
-function NowPlaying({ stack }: { stack?: boolean }) {
+function NowPlaying({ stack, go }: { stack?: boolean; go?: (p: string) => void }) {
   const q = useSpotify();
   const ctl = useControl();
   const s = q.data;
   if (!s) return <Notice>{q.isError ? "Spotify status unavailable while the server is unreachable." : "Loading..."}</Notice>;
-  if (!s.connected) return <Notice>Spotify is not connected. Connect it in Settings.</Notice>;
+  if (!s.connected)
+    return (
+      <Notice>
+        <p>Spotify is not connected.</p>
+        {go && <button className="btn mt-2" onClick={() => go("/settings")}>Open Settings</button>}
+      </Notice>
+    );
   if (s.error) return <Notice>{s.error.message}</Notice>;
   const p = s.playback;
   if (!p) return <Notice>Nothing playing. Start Spotify on a device, or pick one in Devices.</Notice>;
   const { run } = ctl;
   const next = { repeat: { off: "context", context: "track", track: "off" } as const }.repeat[p.repeat] ?? "off";
-  const likeBtn = (p.uri && /^spotify:track:/.test(p.uri) ? <button className={`btn ${p.liked ? "btn-accent" : ""}`} aria-label={p.liked ? "Unlike" : "Like"} aria-pressed={!!p.liked} onClick={() => run({ method: "PUT", path: "/api/spotify/like", body: { uri: p.uri, liked: !p.liked }, patch: { liked: !p.liked } })}><svg viewBox="0 0 24 24" className="h-6 w-6" fill={p.liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden><path d={I.heart} /></svg></button> : null);
+  const likeBtn = (p.uri && /^spotify:track:/.test(p.uri) ? <button className="btn min-h-14 min-w-14 shrink-0" aria-label={p.liked ? "Unlike" : "Like"} aria-pressed={!!p.liked} onClick={() => run({ method: "PUT", path: "/api/spotify/like", body: { uri: p.uri, liked: !p.liked }, patch: { liked: !p.liked } })}><svg viewBox="0 0 24 24" className="h-7 w-7" fill={p.liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden><path d={I.heart} /></svg></button> : null);
   const progress = <Progress p={p} at={q.dataUpdatedAt} onSeek={(ms) => run({ method: "PUT", path: "/api/spotify/seek", body: { positionMs: ms }, patch: { progress_ms: ms } })} />;
   const transport = (
     <>
       <button className="btn" aria-label="Previous" onClick={() => run({ method: "PUT", path: "/api/spotify/previous" })}><Icon d={I.prev} /></button>
-      <button className="btn btn-accent min-h-14 min-w-16" aria-label={p.is_playing ? "Pause" : "Play"} onClick={() => run({ method: "PUT", path: p.is_playing ? "/api/spotify/pause" : "/api/spotify/play", patch: { is_playing: !p.is_playing } })}><Icon d={p.is_playing ? I.pause : I.play} /></button>
+      <button className="btn btn-accent min-h-16 min-w-20 short:min-h-14" aria-label={p.is_playing ? "Pause" : "Play"} onClick={() => run({ method: "PUT", path: p.is_playing ? "/api/spotify/pause" : "/api/spotify/play", patch: { is_playing: !p.is_playing } })}><Icon d={p.is_playing ? I.pause : I.play} /></button>
       <button className="btn" aria-label="Next" onClick={() => run({ method: "PUT", path: "/api/spotify/next" })}><Icon d={I.next} /></button>
     </>
   );
@@ -119,23 +125,24 @@ function NowPlaying({ stack }: { stack?: boolean }) {
           {likeBtn}
         </div>
         {progress}
-        <div className="flex items-center justify-center gap-2">{shuffleBtn}{transport}{repeatBtn}</div>
+        <div className="flex items-center justify-center gap-3">{shuffleBtn}{transport}{repeatBtn}</div>
         {volume}
         {err}
       </section>
     );
   return (
-    <section className="card flex min-w-0 flex-col gap-1" aria-label="Now playing">
+    <section className="card flex min-w-0 shrink-0 flex-col gap-1 landscape:flex-1 landscape:justify-center landscape:gap-3 short:gap-2" aria-label="Now playing">
       <div className="flex min-w-0 items-center gap-3">
-        {p.art ? <img src={p.art} alt="" className="aspect-square w-[clamp(3.5rem,16vh,5.5rem)] shrink-0 rounded-lg frame object-cover" /> : <div className="aspect-square w-[clamp(3.5rem,16vh,5.5rem)] shrink-0 rounded-lg frame bg-raised" />}
+        {p.art ? <img src={p.art} alt="" className="aspect-square w-[clamp(3.5rem,16vh,5.5rem)] shrink-0 rounded-lg frame object-cover landscape:w-[clamp(5rem,24vh,10rem)] short:w-20" /> : <div className="aspect-square w-[clamp(3.5rem,16vh,5.5rem)] shrink-0 rounded-lg frame bg-raised landscape:w-[clamp(5rem,24vh,10rem)] short:w-20" />}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-lg font-bold">{p.track ?? "Unknown"}</p>
-          <p className="truncate text-dim">{p.artists.join(", ")}</p>
+          <p className="truncate text-lg font-bold landscape:text-2xl">{p.track ?? "Unknown"}</p>
+          <p className="truncate text-dim landscape:text-lg">{p.artists.join(", ")}</p>
           {p.device && <p className="truncate text-sm text-dim">on {p.device}</p>}
         </div>
+        {likeBtn}
       </div>
       {progress}
-      <div className="flex items-center justify-center gap-2">{likeBtn}{transport}</div>
+      <div className="flex items-center justify-center gap-3">{transport}</div>
       {err}
     </section>
   );
@@ -172,7 +179,13 @@ function Shortcuts({ go }: { go: (p: string) => void }) {
     onError: (e) => setMsg(e.message),
   });
   if (!settings) return null;
-  if (settings.shortcuts.every((s) => s.action.type === "none")) return null;
+  if (settings.shortcuts.every((s) => s.action.type === "none"))
+    return (
+      <section aria-label="Shortcuts" className="rounded-lg border-[3px] border-line bg-raised p-3">
+        <p className="text-dim">Shortcuts put your favorite actions one tap away. Add them in Settings.</p>
+        <button className="btn mt-2" onClick={() => go("/settings")}>Add shortcuts</button>
+      </section>
+    );
   return (
     <section aria-label="Shortcuts">
       <div className="grid grid-cols-2 gap-2 landscape:max-[1100px]:grid-cols-3 min-[1100px]:grid-cols-3">
@@ -194,7 +207,7 @@ const fmtCondition = (c: string) => CONDITION[c] ?? c.charAt(0).toUpperCase() + 
 
 function Reading({ label, value, unit, note }: { label: string; value: string; unit: string | null; note?: string }) {
   return (
-    <div className="min-w-0 rounded-lg border-[3px] border-line bg-raised px-3 py-2 shadow-[4px_4px_0_var(--color-line)]">
+    <div className="min-w-0 rounded-lg border-[3px] border-line bg-raised px-3 py-2 ">
       <p className="truncate text-sm text-dim">{label}</p>
       <p className="truncate text-3xl font-black tabular-nums">{fmtReading(value)}{unit ? ` ${unit}` : ""}</p>
       {note && <p className="truncate text-sm font-bold">{note}</p>}
@@ -239,17 +252,17 @@ function Forecast({ now }: { now: Date }) {
     .filter((d) => new Date(d.date) >= new Date(today)).slice(0, 5); // drop days already past
   if (!days.length) return null;
   return (
-    <ul className="mt-[clamp(0.75rem,4vh,2rem)] grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-3" aria-label="Forecast">
+    <ul className="mt-[clamp(0.75rem,4vh,2rem)] short:mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-3" aria-label="Forecast">
       {days.map((d, i) => {
         const t = new Date(d.date);
         return (
-          <li key={d.date} className={`min-w-0 flex-col items-center rounded-lg border-[3px] border-line bg-raised px-1 py-[clamp(0.5rem,2vh,1rem)] text-center ${i >= 3 ? "hidden sm:flex" : "flex"}`}>
-            <p className="text-lg font-black sm:text-xl">{t.toDateString() === today ? "Today" : t.toLocaleDateString([], { weekday: "short" })}</p>
-            <svg viewBox="0 0 24 24" className="my-1 h-10 w-10 sm:h-12 sm:w-12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={ICON[d.condition] ?? W.cloud} /></svg>
+          <li key={d.date} className={`min-w-0 flex-col items-center rounded-lg border-[3px] border-line bg-raised px-1 py-[clamp(0.5rem,2vh,1rem)] short:py-1 text-center ${i >= 3 ? "hidden sm:flex" : "flex"}`}>
+            <p className="text-lg font-black sm:text-xl short:text-base">{t.toDateString() === today ? "Today" : t.toLocaleDateString([], { weekday: "short" })}</p>
+            <svg viewBox="0 0 24 24" className="my-1 h-10 w-10 sm:h-12 sm:w-12 short:my-0 short:h-7 short:w-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={ICON[d.condition] ?? W.cloud} /></svg>
             <p className="sr-only">{fmtCondition(d.condition)}</p>
-            <p className="text-3xl font-black leading-none tabular-nums sm:text-4xl"><span className="sr-only">High </span>{deg(d.high)}</p>
-            <p className="mt-1 text-xl font-bold leading-none text-dim tabular-nums sm:text-2xl"><span className="sr-only">Low </span><span aria-hidden>↓ </span>{deg(d.low)}</p>
-            <p className={`mt-1 text-base font-bold leading-none text-dim tabular-nums ${d.rain ? "" : "invisible"}`} aria-hidden={!d.rain}>{fmtReading(String(d.rain || 0))} mm</p>
+            <p className="text-3xl font-black leading-none tabular-nums sm:text-4xl short:text-2xl"><span className="sr-only">High </span>{deg(d.high)}</p>
+            <p className="mt-1 text-xl font-bold leading-none text-dim tabular-nums sm:text-2xl short:text-lg"><span className="sr-only">Low </span><span aria-hidden>↓ </span>{deg(d.low)}</p>
+            <p className={`mt-1 text-base font-bold leading-none text-dim tabular-nums short:text-sm ${d.rain ? "" : "invisible"}`} aria-hidden={!d.rain}>{fmtReading(String(d.rain || 0))} mm</p>
           </li>
         );
       })}
@@ -261,8 +274,8 @@ function ClockHero() {
   const now = useNow();
   const h24 = useSettings().data?.clock24h ?? true;
   return (
-    <section className="card flex flex-col justify-center landscape:min-h-0" aria-label="Clock">
-      <span className="text-[clamp(4rem,min(15vw,34vh),12rem)] font-black leading-none tabular-nums">{fmtTime(now, h24)}</span>
+    <section className="card flex flex-col justify-center-safe landscape:min-h-0 landscape:overflow-y-auto" aria-label="Clock">
+      <span className="text-[clamp(4rem,min(15vw,34vh),12rem)] font-black short:text-[min(15vw,30vh)] leading-none tabular-nums">{fmtTime(now, h24)}</span>
       <span className="mt-2 text-[clamp(1.1rem,5vh,2rem)] font-bold text-dim">{now.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</span>
       <Forecast now={now} />
     </section>
@@ -322,7 +335,7 @@ export function Dashboard({ go }: { go: (p: string) => void }) {
     <div className="grid gap-3 pr-2 pb-2 landscape:h-full landscape:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
       <ClockHero />
       <div className="flex flex-col gap-3 pr-2 pb-2 landscape:min-h-0 landscape:overflow-y-auto">
-        <NowPlaying />
+        <NowPlaying go={go} />
         <HomeReadings />
         <Shortcuts go={go} />
       </div>
