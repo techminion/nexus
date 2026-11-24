@@ -138,7 +138,7 @@ function NowPlaying({ stack, go }: { stack?: boolean; go?: (p: string) => void }
       </section>
     );
   return (
-    <section className="card flex min-w-0 shrink-0 flex-col gap-1 landscape:flex-1 landscape:justify-center landscape:gap-3 short:flex-none short:justify-start short:gap-1 short:p-2" aria-label="Now playing">
+    <section className="card flex min-w-0 shrink-0 flex-col gap-1 landscape:flex-1 landscape:justify-center landscape:gap-3 short:justify-center short:gap-2 short:p-2" aria-label="Now playing">
       <div className="flex min-w-0 items-center gap-3">
         {p.art ? <img src={p.art} alt="" className="aspect-square w-[clamp(3.5rem,16vh,5.5rem)] shrink-0 rounded-lg frame object-cover landscape:w-[clamp(5rem,24vh,10rem)] short:w-14" /> : <div className="aspect-square w-[clamp(3.5rem,16vh,5.5rem)] shrink-0 rounded-lg frame bg-raised landscape:w-[clamp(5rem,24vh,10rem)] short:w-14" />}
         <div className="min-w-0 flex-1">
