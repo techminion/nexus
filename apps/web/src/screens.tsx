@@ -280,12 +280,33 @@ function Forecast({ now }: { now: Date }) {
   );
 }
 
+/** The weather entity and its "Partly cloudy · 26.4°" line, or null when Home Assistant has no usable reading. */
+function useOutside() {
+  const ha = useHa().data;
+  const w = ha?.reachable ? ha.sensors.find((x) => x.id.startsWith("weather.")) : undefined;
+  const text = w && w.state.trim() !== "" && Number.isFinite(Number(w.state)) ? `${w.condition ? fmtCondition(w.condition) + " · " : ""}${Math.round(Number(w.state) * 10) / 10}°` : null;
+  return { w, text };
+}
+
+/** The full-screen clock's weather: an icon, now, and today's high and low. Quiet, like the date above it. */
+export function AmbientWeather() {
+  const { w, text } = useOutside();
+  if (!w || !text) return null;
+  const today = new Date().toDateString();
+  const d = w.forecast?.find((x) => new Date(x.date).toDateString() === today);
+  return (
+    <span className="mt-[min(3vw,4vh)] flex items-center gap-[min(2vw,3vh)] text-[min(5vw,6vh)] text-white/60 tabular-nums" aria-label={`Outside ${text}${d ? `, high ${deg(d.high)}, low ${deg(d.low)}` : ""}`}>
+      <svg viewBox="0 0 24 24" className="h-[1.2em] w-[1.2em] shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={(w.condition && ICON[w.condition]) || W.cloud} /></svg>
+      <span aria-hidden>{text}</span>
+      {d && <span aria-hidden className="text-white/40">↑{deg(d.high)} ↓{deg(d.low)}</span>}
+    </span>
+  );
+}
+
 function ClockHero() {
   const now = useNow();
   const h24 = useSettings().data?.clock24h ?? true;
-  const ha = useHa().data;
-  const w = ha?.reachable ? ha.sensors.find((x) => x.id.startsWith("weather.")) : undefined;
-  const outside = w && w.state.trim() !== "" && Number.isFinite(Number(w.state)) ? `${w.condition ? fmtCondition(w.condition) + " · " : ""}${Math.round(Number(w.state) * 10) / 10}°` : null;
+  const outside = useOutside().text;
   return (
     <section className="card flex flex-col justify-center-safe landscape:min-h-0 landscape:overflow-y-auto" aria-label="Clock">
       <span className="text-[clamp(4rem,min(15vw,34vh),12rem)] font-black short:text-[min(15vw,30vh)] leading-none tabular-nums">{fmtTime(now, h24)}</span>

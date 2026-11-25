@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, homelabIssues, useHa, useHomelab, useSettings, useSpotify, type Module } from "./api";
-import { Dashboard, Devices, Homelab, Icon, Music, SettingsScreen, Timers } from "./screens";
+import { AmbientWeather, Dashboard, Devices, Homelab, Icon, Music, SettingsScreen, Timers } from "./screens";
 import { Studio } from "./studio";
 
 const NAV: { id: Module; label: string; path: string; icon: string }[] = [
@@ -104,6 +104,7 @@ function Shell({ path, go }: { path: string; go: (p: string) => void }) {
       <button className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black text-white" onClick={() => setFull(false)} aria-label="Exit clock mode">
         <span className="text-[min(28vw,40vh)] font-light leading-none tabular-nums">{fmtTime(now, h24)}</span>
         <span className="mt-4 text-[min(5vw,6vh)] text-white/60">{now.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</span>
+        <AmbientWeather />
       </button>
     );
 
