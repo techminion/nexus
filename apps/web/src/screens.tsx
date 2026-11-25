@@ -829,6 +829,19 @@ function AlertsCard() {
   );
 }
 
+function Choice<T extends string>({ label, value, options, onPick }: { label: string; value: T; options: [T, string][]; onPick: (v: T) => void }) {
+  return (
+    <div className="flex min-h-12 flex-wrap items-center justify-between gap-2" role="radiogroup" aria-label={label}>
+      {label}
+      <div className="flex flex-wrap gap-2">
+        {options.map(([v, text]) => (
+          <button key={v} role="radio" aria-checked={value === v} className={`btn ${value === v ? "btn-accent" : ""}`} onClick={() => onPick(v)}>{text}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function SettingsScreen({ onClock }: { onClock: () => void }) {
   const qc = useQueryClient();
   const settings = useSettings();
@@ -849,14 +862,10 @@ export function SettingsScreen({ onClock }: { onClock: () => void }) {
           </label>
         )}
         {settings.data && (
-          <div className="flex min-h-12 flex-wrap items-center justify-between gap-2" role="radiogroup" aria-label="Theme">
-            Theme
-            <div className="flex gap-2">
-              {(["dark", "light", "soft", "system"] as const).map((t) => (
-                <button key={t} role="radio" aria-checked={(settings.data!.theme ?? "dark") === t} className={`btn capitalize ${(settings.data!.theme ?? "dark") === t ? "btn-accent" : ""}`} onClick={() => clock.mutate({ ...settings.data!, theme: t })}>{t}</button>
-              ))}
-            </div>
-          </div>
+          <>
+            <Choice label="Style" value={settings.data.skin ?? "brutal"} options={[["brutal", "Neobrutalism"], ["soft", "Neumorphism"]]} onPick={(skin) => clock.mutate({ ...settings.data!, skin })} />
+            <Choice label="Mode" value={settings.data.theme ?? "dark"} options={[["light", "Light"], ["dark", "Dark"], ["system", "System"]]} onPick={(theme) => clock.mutate({ ...settings.data!, theme })} />
+          </>
         )}
         <button className="btn" onClick={onClock}>Fullscreen clock (tap to exit)</button>
       </section>

@@ -27,8 +27,10 @@ export const voiceShortcut = (said: string, shortcuts: Shortcut[]) => {
   const p = voicePhrase(said);
   return p ? shortcuts.findIndex((s) => s.action.type !== "none" && voicePhrase(s.label) === p) : -1;
 };
-export const THEMES = ["dark", "light", "soft", "system"] as const;
-export interface Settings { clock24h: boolean; theme?: (typeof THEMES)[number]; shortcuts: Shortcut[] }
+export const THEMES = ["dark", "light", "system"] as const;
+/** The look: neobrutalism (outlines, hard shadows) or neumorphism ("soft"). Independent of light/dark. */
+export const SKINS = ["brutal", "soft"] as const;
+export interface Settings { clock24h: boolean; theme?: (typeof THEMES)[number]; skin?: (typeof SKINS)[number]; shortcuts: Shortcut[] }
 
 export const DEFAULT_SETTINGS: Settings = {
   clock24h: true,
@@ -92,7 +94,8 @@ export function validateAction(a: unknown, nested = false): string | null {
 export function validateSettings(s: unknown): string | null {
   if (!isObj(s) || typeof s.clock24h !== "boolean" || !Array.isArray(s.shortcuts) || s.shortcuts.length !== 5) return "invalid settings";
   if (s.theme !== undefined && !(THEMES as readonly unknown[]).includes(s.theme)) return "invalid theme";
-  if (Object.keys(s).some((k) => !["clock24h", "theme", "shortcuts"].includes(k))) return "unexpected fields";
+  if (s.skin !== undefined && !(SKINS as readonly unknown[]).includes(s.skin)) return "invalid skin";
+  if (Object.keys(s).some((k) => !["clock24h", "theme", "skin", "shortcuts"].includes(k))) return "unexpected fields";
   for (const sc of s.shortcuts) {
     if (!isObj(sc) || Object.keys(sc).length !== 2 || typeof sc.label !== "string" || sc.label.length > 40) return "invalid shortcut";
     const e = validateAction(sc.action);

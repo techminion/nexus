@@ -67,11 +67,11 @@ function Shell({ path, go }: { path: string; go: (p: string) => void }) {
   const ha = useHa();
   const [ambient, setAmbient] = useState(false);
   const h24 = settings?.clock24h ?? true;
-  const theme = settings?.theme ?? "dark";
+  const theme = settings?.theme ?? "dark", skin = settings?.skin ?? "brutal";
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    try { localStorage.setItem("theme", theme); } catch { /* storage blocked */ }
-  }, [theme]);
+    Object.assign(document.documentElement.dataset, { theme, skin });
+    try { localStorage.setItem("theme", theme); localStorage.setItem("skin", skin); } catch { /* storage blocked */ }
+  }, [theme, skin]);
   const offline = sp.isError;
   const lamps = [
     { ok: offline ? false : sp.data ? true : null, label: "Server" },

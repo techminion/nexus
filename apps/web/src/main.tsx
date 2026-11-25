@@ -6,7 +6,10 @@ import { App } from "./App";
 import "./index.css";
 
 // Last theme used on this device, so the page doesn't flash the default before settings load.
-try { document.documentElement.dataset.theme = localStorage.getItem("theme") ?? "dark"; } catch { /* storage blocked */ }
+try {
+  document.documentElement.dataset.theme = localStorage.getItem("theme") ?? "dark";
+  document.documentElement.dataset.skin = localStorage.getItem("skin") ?? "brutal";
+} catch { /* storage blocked */ }
 
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({

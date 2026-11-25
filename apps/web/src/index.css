@@ -23,14 +23,15 @@
 :root[data-theme="light"] { color-scheme: only light; }
 :root[data-theme="system"] { color-scheme: light dark; }
 
-/* Soft (neumorphic): one pale surface; controls are lit from the top left and stand out of it, press into it, and
-   wells (inputs, tiles) are sunk into it. Outlines disappear, so --color-line is the surface colour itself. */
-:root[data-theme="soft"] {
-  color-scheme: only light;
-  --color-bg: #e3e8ef; --color-surface: #e3e8ef; --color-raised: #e3e8ef; --color-line: #e3e8ef;
-  --color-fg: #232a35; --color-dim: #4f5866;
-  --soft-up: 4px 4px 8px #b5bcc7, -4px -4px 8px #ffffff;
-  --soft-in: inset 3px 3px 6px #b5bcc7, inset -3px -3px 6px #ffffff;
+/* Neumorphism skin: one surface; controls are lit from the top left and stand out of it, press into it, and wells
+   (inputs, tiles) are sunk into it. Outlines disappear, so --color-line is the surface colour itself. Light and dark
+   both come from the Mode setting, like the default skin. */
+:root[data-skin="soft"] {
+  --color-bg: light-dark(#e3e8ef, #262a31); --color-surface: var(--color-bg); --color-raised: var(--color-bg); --color-line: var(--color-bg);
+  --color-fg: light-dark(#232a35, #e8ebf0); --color-dim: light-dark(#4f5866, #a7afbb);
+  --soft-dark: light-dark(#b5bcc7, #1a1d22); --soft-light: light-dark(#ffffff, #323741);
+  --soft-up: 4px 4px 8px var(--soft-dark), -4px -4px 8px var(--soft-light);
+  --soft-in: inset 3px 3px 6px var(--soft-dark), inset -3px -3px 6px var(--soft-light);
 }
 html, body, #root { height: 100%; }
 body { background: var(--color-bg); color: var(--color-fg); font-family: ui-rounded, system-ui, sans-serif; overscroll-behavior: none; }
@@ -45,12 +46,12 @@ body { background: var(--color-bg); color: var(--color-fg); font-family: ui-roun
 }
 
 /* Unlayered, so these beat the outline-and-offset look of the components above. */
-:root[data-theme="soft"] {
+:root[data-skin="soft"] {
   .btn, .card, .input, .frame, .bg-raised { border-color: transparent; }
   .btn { box-shadow: var(--soft-up); }
   .btn:active, .btn:not(.btn-accent)[aria-checked="true"], .btn:not(.btn-accent)[aria-pressed="true"] { transform: none; box-shadow: var(--soft-in); }
   /* Small enough that the scrolling area's 8px padding doesn't cut the shadow off. */
-  .card { border-radius: 1.25rem; box-shadow: 5px 5px 10px #b5bcc7, -5px -5px 10px #ffffff; }
+  .card { border-radius: 1.25rem; box-shadow: 5px 5px 10px var(--soft-dark), -5px -5px 10px var(--soft-light); }
   /* Wells: inputs, tiles, and the tracks of progress bars. */
   .input, .bg-raised, .rounded-full.bg-surface { box-shadow: var(--soft-in); }
   button:focus-visible, input:focus-visible, select:focus-visible { outline-color: var(--color-fg); }

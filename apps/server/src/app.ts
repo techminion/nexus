@@ -63,7 +63,11 @@ export async function buildApp(cfg: Config) {
   // Every 2 min; a problem is alerted after two checks in a row, so within about 4 minutes.
   const alertTimer = alerts.configured ? setInterval(() => void alerts.tick().catch((e) => warn(`alerts: ${e}`)), 120_000) : undefined;
   alertTimer?.unref();
-  const settings = (): Settings => kv.get<Settings>("settings") ?? DEFAULT_SETTINGS;
+  const settings = (): Settings => {
+    const s = kv.get<Settings>("settings") ?? DEFAULT_SETTINGS;
+    // Saved for a short while as a theme; it is now a skin on its own.
+    return (s.theme as string) === "soft" ? { ...s, theme: "light", skin: "soft" } : s;
+  };
 
   // Random session ids kept server-side so logout revokes them; sessions are tied to the current password.
   const pwTag = sha(cfg.password).toString("hex").slice(0, 16);
