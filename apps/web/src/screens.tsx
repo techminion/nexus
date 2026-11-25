@@ -648,9 +648,9 @@ export function Homelab() {
           : d.containers.length === 0 ? <p className="text-dim">No containers</p>
           : d.containers.map((c) => (
             <div key={c.name} className="flex items-center gap-2">
-              <span className={`h-2.5 w-2.5 shrink-0 rounded-full border-2 border-line ${c.state === "running" ? "bg-accent" : "bg-bad"}`} />
+              <span className={`h-2.5 w-2.5 shrink-0 rounded-full border-2 border-line ${c.state === "running" ? "bg-lamp" : "bg-bad"}`} />
               <span className="truncate">{c.name}</span>
-              <span className="ml-auto truncate text-sm text-dim">{c.status}</span>
+              <span className="ml-auto truncate text-sm text-dim">{tidyStatus(c.status)}</span>
             </div>
           ))}
       </section>
@@ -659,7 +659,7 @@ export function Homelab() {
         {d.hosts.length === 0 && <p className="text-dim">No hosts configured (NEXUS_HOSTS)</p>}
         {d.hosts.map((h) => (
           <div key={h.name} className="flex items-center gap-2">
-            <span className={`h-2.5 w-2.5 shrink-0 rounded-full border-2 border-line ${h.up ? "bg-accent" : "bg-bad"}`} />
+            <span className={`h-2.5 w-2.5 shrink-0 rounded-full border-2 border-line ${h.up ? "bg-lamp" : "bg-bad"}`} />
             <span className="truncate">{h.name} <span className="text-sm text-dim">{h.target}</span></span>
             <span className="ml-auto text-sm tabular-nums text-dim">{h.up ? `${h.latencyMs} ms` : "down"}</span>
           </div>
@@ -670,6 +670,9 @@ export function Homelab() {
     </div>
   );
 }
+
+/** Docker and Podman say "Up About a minute" and "Up Less than a second"; lower-case the word after "Up". */
+const tidyStatus = (s: string) => s.replace(/^Up (About|Less)\b/, (m) => m.toLowerCase().replace(/^up/, "Up"));
 
 /** The VPS over its read-only ssh companion: load, memory, disk and every user's containers. */
 function VpsCard() {
@@ -691,9 +694,9 @@ function VpsCard() {
       {v.containers === null ? <p role="status" className="text-dim">No container snapshot (run deploy/vps/install.sh)</p>
         : v.containers.map((c) => (
           <div key={`${c.owner}/${c.name}`} className="flex items-center gap-2">
-            <span className={`h-2.5 w-2.5 shrink-0 rounded-full border-2 border-line ${c.state === "running" ? "bg-accent" : "bg-bad"}`} />
+            <span className={`h-2.5 w-2.5 shrink-0 rounded-full border-2 border-line ${c.state === "running" ? "bg-lamp" : "bg-bad"}`} />
             <span className="truncate">{c.name} <span className="text-sm text-dim">{c.owner}</span></span>
-            <span className="ml-auto truncate text-sm text-dim">{c.status}</span>
+            <span className="ml-auto truncate text-sm text-dim">{tidyStatus(c.status)}</span>
           </div>
         ))}
     </section>
@@ -710,7 +713,7 @@ function StudioHost({ hosts }: { hosts: HomelabData["hosts"] }) {
   const live = st?.cameras.filter((c) => c.live).length ?? 0;
   const row = (name: string, ok: boolean | null, detail: string) => (
     <div className="flex items-center gap-2">
-      <span className={`h-2.5 w-2.5 shrink-0 rounded-full border-2 border-line ${ok === null ? "bg-raised" : ok ? "bg-accent" : "bg-bad"}`} />
+      <span className={`h-2.5 w-2.5 shrink-0 rounded-full border-2 border-line ${ok === null ? "bg-dim" : ok ? "bg-lamp" : "bg-bad"}`} />
       <span className="truncate">{name}</span>
       <span className="ml-auto truncate text-sm text-dim">{detail}</span>
     </div>

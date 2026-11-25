@@ -80,7 +80,7 @@ function Obs() {
   return (
     <section className="card flex flex-col gap-3 p-3" aria-label="OBS">
       <div className="flex items-center gap-2">
-        <span className={`h-3 w-3 rounded-full border-2 border-line ${!o.reachable ? "bg-bad" : o.recording ? "bg-bad animate-pulse" : "bg-accent"}`} />
+        <span className={`h-3 w-3 rounded-full border-2 border-line ${!o.reachable ? "bg-bad" : o.recording ? "bg-bad animate-pulse" : "bg-lamp"}`} />
         <h2 className="flex-1 font-bold">OBS</h2>
         {o.reachable && o.streaming && <span className="text-sm font-bold text-warn">Streaming</span>}
         {o.reachable && (
@@ -123,7 +123,7 @@ export function Studio() {
         {s.cameras.map((c) => (
           <section key={c.path} className="card flex flex-col gap-2 p-3" aria-label={c.name}>
             <div className="flex items-center gap-2">
-              <span className={`h-3 w-3 rounded-full border-2 border-line ${c.live ? "bg-accent" : c.onDemand && s.reachable ? "bg-raised" : "bg-bad"}`} />
+              <span className={`h-3 w-3 rounded-full border-2 border-line ${c.live ? "bg-lamp" : c.onDemand && s.reachable ? "bg-dim" : "bg-bad"}`} />
               <span className="min-w-0 flex-1 truncate font-bold">{c.name}</span>
               <span className="text-sm text-dim">{s.reachable ? statusOf(c) : "Offline"}{c.viewers > 0 ? ` · ${c.viewers} watching` : ""}</span>
             </div>

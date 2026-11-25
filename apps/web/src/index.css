@@ -13,6 +13,8 @@
   --color-fg: light-dark(#111111, #f7f3e8);
   --color-dim: light-dark(#4a4a4a, #b8b0a0);
   --color-accent: #3ddc84;
+  /* Healthy status dots: always this green, whatever the Style's accent. */
+  --color-lamp: #3ddc84;
   --color-ok: light-dark(#0a6b35, #3ddc84);
   --color-warn: light-dark(#a35200, #ffb703);
   --color-bad: light-dark(#e5383b, #ff5a5f);

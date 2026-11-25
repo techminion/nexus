@@ -53,7 +53,7 @@ function Login() {
 function Dot({ ok, label, big }: { ok: boolean | null; label: string; big?: boolean }) {
   return (
     <span className={`flex items-center gap-1.5 ${big ? "text-base font-bold text-fg" : "text-sm text-dim"}`} title={label}>
-      <span className={`${big ? "h-4 w-4" : "h-3 w-3"} rounded-full border-2 border-line ${ok === null ? "bg-dim" : ok ? "bg-accent" : "bg-bad"}`} />
+      <span className={`${big ? "h-4 w-4" : "h-3 w-3"} rounded-full border-2 border-line ${ok === null ? "bg-dim" : ok ? "bg-lamp" : "bg-bad"}`} />
       {label}
     </span>
   );
