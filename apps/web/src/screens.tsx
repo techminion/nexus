@@ -834,14 +834,12 @@ function AlertsCard() {
 
 function Choice<T extends string>({ label, value, options, onPick }: { label: string; value: T; options: [T, string][]; onPick: (v: T) => void }) {
   return (
-    <div className="flex min-h-12 flex-wrap items-center justify-between gap-2" role="radiogroup" aria-label={label}>
+    <label className="flex min-h-12 items-center justify-between gap-3">
       {label}
-      <div className="flex flex-wrap gap-2">
-        {options.map(([v, text]) => (
-          <button key={v} role="radio" aria-checked={value === v} className={`btn ${value === v ? "btn-accent" : ""}`} onClick={() => onPick(v)}>{text}</button>
-        ))}
-      </div>
-    </div>
+      <select className="input w-auto min-w-48" value={value} onChange={(e) => onPick(e.target.value as T)}>
+        {options.map(([v, text]) => <option key={v} value={v}>{text}</option>)}
+      </select>
+    </label>
   );
 }
 
