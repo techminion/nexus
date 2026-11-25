@@ -246,7 +246,7 @@
       "refersTo": "card",
       "description": "The slab every page is built from.",
       "html": "<section class=\"ds-card\"><h2 class=\"ds-card-title\">Containers <span>snapshot 14s old</span></h2><p>3/3 running</p></section>",
-      "css": ".ds-card{border:3px solid var(--color-line);border-radius:12px;background:var(--color-surface);color:var(--color-fg);padding:16px;box-shadow:6px 6px 0 var(--color-line);font-family:ui-rounded,system-ui,sans-serif}.ds-card-title{margin:0 0 8px;font-size:1.125rem;font-weight:600}.ds-card-title span{font-size:.875rem;font-weight:400;color:var(--color-dim)}"
+      "css": ".ds-card{border:3px solid var(--color-line);border-radius:12px;background:var(--color-surface);color:var(--color-fg);padding:16px;box-shadow:6px 6px 0 var(--color-line);font-family:ui-rounded,system-ui,sans-serif}.ds-card-title{margin:0 0 8px;font-size:1.125rem;font-weight:700}.ds-card-title span{font-size:.875rem;font-weight:400;color:var(--color-dim)}"
     },
     {
       "name": "Input",

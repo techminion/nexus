@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError, homelabIssues, macCommand, MAC_COMMANDS, useHa, useHomelab, useVps, useMac, useObs, useSettings, useSpotify, useStudio, type Homelab as HomelabData, type Action, type MacCommand, type Device, type Item, type Module, type PlaylistInfo, type RecentTrack, type Playback, type Settings, type Shortcut, type SpotifyState } from "./api";
 
 export const Icon = ({ d, stroke }: { d: string; stroke?: boolean }) => (
-  <svg viewBox="0 0 24 24" className="h-6 w-6" fill={stroke ? "none" : "currentColor"} stroke={stroke ? "currentColor" : "none"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+  <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0" fill={stroke ? "none" : "currentColor"} stroke={stroke ? "currentColor" : "none"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <path d={d} />
   </svg>
 );
@@ -92,11 +92,11 @@ function NowPlaying({ stack, go }: { stack?: boolean; go?: (p: string) => void }
   const q = useSpotify();
   const ctl = useControl();
   const s = q.data;
-  if (!s) return <Notice>{q.isError ? "Spotify status unavailable while the server is unreachable." : "Loading..."}</Notice>;
+  if (!s) return <Notice>{q.isError ? "Spotify status unavailable while the server is unreachable." : "Loading…"}</Notice>;
   if (!s.connected)
     return (
       <Notice>
-        <p>Spotify is not connected.</p>
+        <p>Spotify is not connected</p>
         {go && <button className="btn mt-2" onClick={() => go("/settings")}>Open Settings</button>}
       </Notice>
     );
@@ -129,7 +129,7 @@ function NowPlaying({ stack, go }: { stack?: boolean; go?: (p: string) => void }
           <div className="min-w-0 flex-1">
             <p className="truncate text-xl font-bold">{p.track ?? "Unknown"}</p>
             <p className="truncate text-dim">{p.artists.join(", ")}</p>
-            <p className="truncate text-sm text-dim">{p.album}{p.device ? ` - ${p.device}` : ""}</p>
+            <p className="truncate text-sm text-dim">{p.album}{p.device ? ` · ${p.device}` : ""}</p>
           </div>
           {likeBtn}
         </div>
@@ -380,10 +380,10 @@ function UpNext({ bare }: { bare?: boolean }) {
   useEffect(() => { void qc.invalidateQueries({ queryKey: ["queue"] }); }, [trackUri, qc]);
   return (
     <section className={bare ? "flex flex-col gap-2" : "card flex min-h-0 flex-col gap-2 overflow-y-auto"} aria-label="Up next">
-      {!bare && <h2 className="text-lg font-semibold">Up next</h2>}
+      {!bare && <h2 className="text-lg font-bold">Up next</h2>}
       {q.isError ? <p role="status" className="text-dim">{q.error.message}</p>
-        : !q.data ? <p className="text-dim">Loading...</p>
-        : q.data.queue.length === 0 ? <p className="text-dim">Queue is empty.</p>
+        : !q.data ? <p className="text-dim">Loading…</p>
+        : q.data.queue.length === 0 ? <p className="text-dim">Queue is empty</p>
         : q.data.queue.map((t, i) => (
           <div key={i} className="flex min-h-12 items-center gap-3">
             <Art src={t.art} />
@@ -423,7 +423,7 @@ function LibraryPanel({ tabs }: { tabs: Tab[] }) {
   const add = useAddQueue();
   const pin = useMutation({
     mutationFn: (s: Settings) => api<Settings>("PUT", "/api/settings", s),
-    onSuccess: (s) => { qc.setQueryData(["settings"], s); setMsg("Pinned."); },
+    onSuccess: (s) => { qc.setQueryData(["settings"], s); setMsg("Pinned"); },
     onError: (e) => setMsg(e.message),
   });
   const doPin = (p: PlaylistInfo) => {
@@ -444,7 +444,7 @@ function LibraryPanel({ tabs }: { tabs: Tab[] }) {
       {tab === "speakers" && <SpotifyDevices />}
       {msg && <p role="status" className="text-sm text-ok">{msg}</p>}
       {err && <Notice>{err.message}</Notice>}
-      {tab === "playlists" && pl.data?.playlists.length === 0 && <Notice>No playlists.</Notice>}
+      {tab === "playlists" && pl.data?.playlists.length === 0 && <Notice>No playlists</Notice>}
       {tab === "playlists" && pl.data?.playlists.map((p) => (
         <div key={p.id} className="flex items-center gap-2">
           <button className="btn min-w-0 flex-1 justify-start gap-3 text-left" aria-label={`Play ${p.name}`} onClick={() => play.mutate({ path: "/api/spotify/play-context", body: { contextUri: p.uri } })}>
@@ -454,14 +454,14 @@ function LibraryPanel({ tabs }: { tabs: Tab[] }) {
           <button className="btn px-3" aria-label={`Pin ${p.name} as shortcut`} onClick={() => doPin(p)}>Pin</button>
         </div>
       ))}
-      {tab === "recent" && rc.data?.tracks.length === 0 && <Notice>Nothing played recently.</Notice>}
+      {tab === "recent" && rc.data?.tracks.length === 0 && <Notice>Nothing played recently</Notice>}
       {tab === "recent" && rc.data?.tracks.map((t) => (
         <div key={t.uri + t.playedAt} className="flex items-center gap-2">
           <button className="btn min-w-0 flex-1 justify-start gap-3 text-left" aria-label={`Play ${t.name}`} disabled={!t.playable} onClick={() => play.mutate({ path: "/api/spotify/play-uris", body: { uris: [t.uri] } })}>
             <Art src={t.art} />
             <span className="min-w-0"><span className="block truncate">{t.name}</span><span className="block truncate text-sm text-dim">{t.artists.join(", ")}</span></span>
           </button>
-          {t.playable && <button className="btn px-3" aria-label={`Add ${t.name} to queue`} onClick={() => { setMsg(""); add.mutate(t.uri, { onSuccess: () => setMsg("Added to queue."), onError: (e) => setMsg(e.message) }); }}>+ Queue</button>}
+          {t.playable && <button className="btn px-3" aria-label={`Add ${t.name} to queue`} onClick={() => { setMsg(""); add.mutate(t.uri, { onSuccess: () => setMsg("Added to queue"), onError: (e) => setMsg(e.message) }); }}>+ Queue</button>}
         </div>
       ))}
       </div>
@@ -481,14 +481,14 @@ function SpotifyDevices() {
   });
   if (sp.data && !sp.data.connected) return <Notice>Spotify is not connected. Connect it in Settings.</Notice>;
   if (q.isError) return <Notice>{q.error.message}</Notice>;
-  if (!q.data) return <Notice>Loading...</Notice>;
+  if (!q.data) return <Notice>Loading…</Notice>;
   return (
     <div className="flex flex-col gap-2">
       {q.data.devices.length === 0 && <Notice>No Spotify Connect devices found. Open Spotify on a device.</Notice>}
       {q.data.devices.map((d) => (
         <button key={d.id} className={`btn justify-between ${d.active ? "btn-accent" : ""}`} onClick={() => t.mutate(d.id)}>
-          <span className="truncate">{d.name} <span className="text-dim">({d.type})</span></span>
-          {d.active && <span className="rounded border-2 border-line bg-surface px-1.5 text-xs font-black">ACTIVE</span>}
+          <span className="truncate">{d.name} <span className={`font-normal ${d.active ? "text-black/70" : "text-dim"}`}>{d.type}</span></span>
+          {d.active && <span className="shrink-0 text-sm">Playing here</span>}
         </button>
       ))}
       {t.isError && <p role="alert" className="text-bad">{t.error.message}</p>}
@@ -570,9 +570,9 @@ function AlexaCard() {
   const s = q.data;
   return (
     <section className="card flex flex-col gap-3" aria-label="Alexa and Home">
-      <h2 className="text-lg font-semibold">Alexa / Home</h2>
+      <h2 className="text-lg font-bold">Alexa / Home</h2>
       {q.isError ? <p role="status" className="text-dim">Unavailable: {q.error.message}</p>
-        : !s ? <p className="text-dim">Loading...</p>
+        : !s ? <p className="text-dim">Loading…</p>
         : !s.configured ? <p role="status" className="text-dim">Home Assistant is not configured. Set HA_URL, HA_TOKEN, HA_SENSORS and HA_ANNOUNCE_ENTITY on the server.</p>
         : (
           <>
@@ -581,10 +581,10 @@ function AlexaCard() {
               <div key={x.id} className="flex justify-between gap-2"><span className="truncate text-dim">{x.name}</span><span className="tabular-nums">{x.state}{x.unit ? ` ${x.unit}` : ""}</span></div>
             ))}
             <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (msg.trim()) send.mutate(msg.trim()); }}>
-              <input className="input flex-1" aria-label="Announcement" placeholder="Announce on Echo..." maxLength={300} value={msg} onChange={(e) => setMsg(e.target.value)} />
-              <button className="btn btn-accent" type="submit" disabled={send.isPending || !msg.trim()}>{send.isPending ? "Sending..." : "Send"}</button>
+              <input className="input flex-1" aria-label="Announcement" placeholder="Announce on Echo…" maxLength={300} value={msg} onChange={(e) => setMsg(e.target.value)} />
+              <button className="btn btn-accent" type="submit" disabled={send.isPending || !msg.trim()}>{send.isPending ? "Sending…" : "Send"}</button>
             </form>
-            {send.isSuccess && <p role="status" className="text-ok">Announcement sent.</p>}
+            {send.isSuccess && <p role="status" className="text-ok">Announcement sent</p>}
             {send.isError && <p role="alert" className="text-bad">{send.error.message}</p>}
           </>
         )}
@@ -608,7 +608,7 @@ export function Homelab() {
   const ha = useHa(15_000).data;
   if (q.isError) return <Notice>Homelab unavailable: {q.error.message}</Notice>;
   const d = q.data;
-  if (!d) return <Notice>Loading...</Notice>;
+  if (!d) return <Notice>Loading…</Notice>;
   const { pi } = d;
   const temp = pi.tempC === null ? "" : pi.tempC >= 80 ? "text-bad" : pi.tempC >= 70 ? "text-warn" : "";
   const issues = homelabIssues(d);
@@ -617,8 +617,8 @@ export function Homelab() {
   const echoTemp = ha?.sensors.find((s) => s.unit === "°C");
   const stat = (label: string, value: string, ok: boolean | null) => (
     <div className="flex flex-col">
-      <span className="text-xs uppercase tracking-wide text-dim">{label}</span>
-      <span className={`text-xl font-semibold tabular-nums ${ok === false ? "text-bad" : ""}`}>{value}</span>
+      <span className="text-sm text-dim">{label}</span>
+      <span className={`text-xl font-bold tabular-nums ${ok === false ? "text-bad" : ""}`}>{value}</span>
     </div>
   );
   return (
@@ -630,22 +630,22 @@ export function Homelab() {
           {stat("Hosts", `${up}/${d.hosts.length} up`, d.hosts.length ? up === d.hosts.length : null)}
           {stat("Home Assistant", !ha?.configured ? "not set up" : ha.reachable ? `online${echoTemp ? ` · ${echoTemp.state}°C room` : ""}` : "offline", ha?.configured ? ha.reachable : null)}
         </div>
-        <p role="status" className={issues.length ? "text-bad" : "text-dim"}>{issues.length ? issues.join(" · ") : "All systems normal."}</p>
+        <p role="status" className={issues.length ? "text-bad" : "text-dim"}>{issues.length ? issues.join(" · ") : "All systems normal"}</p>
       </section>
       <section className="card flex flex-col gap-3" aria-label="Raspberry Pi">
-        <h2 className="text-lg font-semibold">Raspberry Pi</h2>
+        <h2 className="text-lg font-bold">Raspberry Pi</h2>
         <div className="flex items-baseline justify-between gap-2">
           <span className={`text-4xl font-light tabular-nums ${temp}`}>{pi.tempC === null ? "n/a" : `${pi.tempC.toFixed(1)}°C`}</span>
-          <span className="text-sm text-dim">{pi.uptimeSec === null ? "uptime n/a" : `up ${uptime(pi.uptimeSec)}`}{pi.load ? ` - load ${pi.load.join(" ")}` : ""}</span>
+          <span className="text-sm text-dim">{pi.uptimeSec === null ? "uptime n/a" : `up ${uptime(pi.uptimeSec)}`}{pi.load ? ` · load ${pi.load.map((l) => l.toFixed(2)).join(" ")}` : ""}</span>
         </div>
         <Bar label="CPU" value={pi.cpuPercent} text={`${pi.cpuPercent}%`} />
         <Bar label="RAM" value={pi.mem && (pi.mem.usedMb / pi.mem.totalMb) * 100} text={pi.mem ? `${pi.mem.usedMb} / ${pi.mem.totalMb} MB` : ""} />
         <Bar label="Disk" value={pi.disk && (pi.disk.usedGb / pi.disk.totalGb) * 100} text={pi.disk ? `${pi.disk.usedGb} / ${pi.disk.totalGb} GB` : ""} />
       </section>
       <section className="card flex flex-col gap-2" aria-label="Containers">
-        <h2 className="text-lg font-semibold">Containers{d.snapshotAge !== null && <span className="ml-2 text-sm font-normal text-dim">snapshot {d.snapshotAge}s old</span>}</h2>
+        <h2 className="text-lg font-bold">Containers{d.snapshotAge !== null && <span className="ml-2 text-sm font-normal text-dim">snapshot {d.snapshotAge}s old</span>}</h2>
         {d.containers === null ? <p role="status" className="text-dim">Unavailable: {d.error}</p>
-          : d.containers.length === 0 ? <p className="text-dim">No containers.</p>
+          : d.containers.length === 0 ? <p className="text-dim">No containers</p>
           : d.containers.map((c) => (
             <div key={c.name} className="flex items-center gap-2">
               <span className={`h-2.5 w-2.5 shrink-0 rounded-full border-2 border-line ${c.state === "running" ? "bg-accent" : "bg-bad"}`} />
@@ -655,8 +655,8 @@ export function Homelab() {
           ))}
       </section>
       <section className="card flex flex-col gap-2" aria-label="Hosts">
-        <h2 className="text-lg font-semibold">Hosts</h2>
-        {d.hosts.length === 0 && <p className="text-dim">No hosts configured (NEXUS_HOSTS).</p>}
+        <h2 className="text-lg font-bold">Hosts</h2>
+        {d.hosts.length === 0 && <p className="text-dim">No hosts configured (NEXUS_HOSTS)</p>}
         {d.hosts.map((h) => (
           <div key={h.name} className="flex items-center gap-2">
             <span className={`h-2.5 w-2.5 shrink-0 rounded-full border-2 border-line ${h.up ? "bg-accent" : "bg-bad"}`} />
@@ -675,20 +675,20 @@ export function Homelab() {
 function VpsCard() {
   const v = useVps().data;
   if (!v?.configured) return null;
-  if (!v.reachable) return <section className="card flex flex-col gap-2" aria-label="VPS"><h2 className="text-lg font-semibold">VPS</h2><p role="status" className="text-bad">Unreachable: {v.error}</p></section>;
+  if (!v.reachable) return <section className="card flex flex-col gap-2" aria-label="VPS"><h2 className="text-lg font-bold">VPS</h2><p role="status" className="text-bad">Unreachable: {v.error}</p></section>;
   const running = v.containers?.filter((c) => c.state === "running").length;
   return (
     <section className="card flex flex-col gap-3" aria-label="VPS">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-lg font-semibold">VPS</h2>
-        <span className="text-sm text-dim">{v.uptimeSec === null ? "uptime n/a" : `up ${uptime(v.uptimeSec)}`}{v.load ? ` - load ${v.load.join(" ")}` : ""}</span>
+        <h2 className="text-lg font-bold">VPS</h2>
+        <span className="text-sm text-dim">{v.uptimeSec === null ? "uptime n/a" : `up ${uptime(v.uptimeSec)}`}{v.load ? ` · load ${v.load.map((l) => l.toFixed(2)).join(" ")}` : ""}</span>
       </div>
       <Bar label="CPU" value={v.cpuPercent} text={`${v.cpuPercent}%`} />
       <Bar label="RAM" value={v.mem && (v.mem.usedMb / v.mem.totalMb) * 100} text={v.mem ? `${v.mem.usedMb} / ${v.mem.totalMb} MB` : ""} />
       <Bar label="Disk" value={v.disk && (v.disk.usedGb / v.disk.totalGb) * 100} text={v.disk ? `${v.disk.usedGb} / ${v.disk.totalGb} GB` : ""} />
-      <h3 className="font-semibold">Containers{v.containers && <span className="ml-2 text-sm font-normal text-dim">{running}/{v.containers.length} running · snapshot {v.snapshotAge}s old</span>}</h3>
+      <h3 className="font-bold">Containers{v.containers && <span className="ml-2 text-sm font-normal text-dim">{running}/{v.containers.length} running · snapshot {v.snapshotAge}s old</span>}</h3>
       {v.incomplete.length > 0 && <p role="status" className="text-bad">Incomplete: could not list containers of {v.incomplete.join(", ")}</p>}
-      {v.containers === null ? <p role="status" className="text-dim">No container snapshot (run deploy/vps/install.sh).</p>
+      {v.containers === null ? <p role="status" className="text-dim">No container snapshot (run deploy/vps/install.sh)</p>
         : v.containers.map((c) => (
           <div key={`${c.owner}/${c.name}`} className="flex items-center gap-2">
             <span className={`h-2.5 w-2.5 shrink-0 rounded-full border-2 border-line ${c.state === "running" ? "bg-accent" : "bg-bad"}`} />
@@ -717,7 +717,7 @@ function StudioHost({ hosts }: { hosts: HomelabData["hosts"] }) {
   );
   return (
     <section className="card flex flex-col gap-2" aria-label="Studio host services">
-      <h2 className="text-lg font-semibold">{host?.name ?? "Studio host"}{ip && <span className="ml-2 text-sm font-normal text-dim">{ip}</span>}</h2>
+      <h2 className="text-lg font-bold">{host?.name ?? "Studio host"}{ip && <span className="ml-2 text-sm font-normal text-dim">{ip}</span>}</h2>
       {host && row("Host (ssh)", host.up, host.up ? `${host.latencyMs} ms` : "down")}
       {st?.configured && row("MediaMTX (cameras)", st.reachable, st.reachable ? `${live}/${st.cameras.length} cameras live` : "down")}
       {obs?.configured && row("OBS", obs.reachable,
@@ -795,7 +795,7 @@ function SettingsForm({ saved }: { saved: Settings }) {
   });
   return (
     <section className="card flex flex-col gap-3">
-      <h2 className="text-lg font-semibold">Shortcuts</h2>
+      <h2 className="text-lg font-bold">Shortcuts</h2>
       {voice && <p className="text-sm text-dim">Voice: say "Alexa, " and a shortcut's name to run it (page and link steps only run from the screen).</p>}
       {sc.map((s, i) => (
         <div key={i} className="flex flex-col gap-2 rounded-lg border-[3px] border-line bg-bg p-3">
@@ -803,9 +803,9 @@ function SettingsForm({ saved }: { saved: Settings }) {
           <ActionEditor a={s.action} scene set={(action) => setSc(sc.map((x, j) => (j === i ? { ...x, action } : x)))} />
         </div>
       ))}
-      <button className="btn btn-accent" onClick={() => save.mutate({ ...saved, shortcuts: sc })}>{save.isPending ? "Saving..." : "Save shortcuts"}</button>
+      <button className="btn btn-accent" onClick={() => save.mutate({ ...saved, shortcuts: sc })}>{save.isPending ? "Saving…" : "Save shortcuts"}</button>
       {save.isError && <p role="alert" className="text-bad">{save.error.message}</p>}
-      {save.isSuccess && <p role="status" className="text-ok">Saved.</p>}
+      {save.isSuccess && <p role="status" className="text-ok">Saved</p>}
     </section>
   );
 }
@@ -816,7 +816,7 @@ function AlertsCard() {
   const t = useMutation({ mutationFn: () => api("POST", "/api/alerts/test") });
   return (
     <section className="card flex flex-col gap-3">
-      <h2 className="text-lg font-semibold">Alerts</h2>
+      <h2 className="text-lg font-bold">Alerts</h2>
       {!q.data ? null : !q.data.configured
         ? <p className="text-dim">Not set up. Set NTFY_URL (and NTFY_TOKEN for a protected topic) on the server.</p>
         : <>
@@ -854,7 +854,7 @@ export function SettingsScreen({ onClock }: { onClock: () => void }) {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-2">
       <section className="card flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">General</h2>
+        <h2 className="text-lg font-bold">General</h2>
         {settings.data && (
           <label className="flex min-h-12 items-center justify-between">
             24-hour clock
@@ -870,11 +870,11 @@ export function SettingsScreen({ onClock }: { onClock: () => void }) {
         <button className="btn" onClick={onClock}>Fullscreen clock (tap to exit)</button>
       </section>
       <section className="card flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Spotify</h2>
+        <h2 className="text-lg font-bold">Spotify</h2>
         <p role="status" className="text-dim">{status}</p>
         {reconnectBanner(s)}
         {s?.connected ? <button className="btn" onClick={() => disc.mutate()}>Disconnect</button> : <a className="btn btn-accent" href="/api/spotify/login">Connect Spotify</a>}
-        {new URLSearchParams(location.search).get("spotify") === "failed" && <p role="alert" className="text-bad">Spotify authorization failed.</p>}
+        {new URLSearchParams(location.search).get("spotify") === "failed" && <p role="alert" className="text-bad">Spotify authorization failed</p>}
       </section>
       <AlertsCard />
       {settings.data && <SettingsForm saved={settings.data} />}

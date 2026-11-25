@@ -28,7 +28,7 @@ function useWhep(path: string, on: boolean) {
       setState("error");
       timer = window.setTimeout(() => setRetry((n) => n + 1), 3000);
     };
-    const deadline = window.setTimeout(fail, 15_000); // never sit on "Connecting..." forever
+    const deadline = window.setTimeout(fail, 15_000); // never sit on "Connecting…" forever
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === "connected") (clearTimeout(deadline), setState("playing"));
       else if (pc.connectionState === "failed" || pc.connectionState === "disconnected") fail();
@@ -63,7 +63,7 @@ function Player({ path, on }: { path: string; on: boolean }) {
   return (
     <div className="relative h-full w-full bg-black">
       <video ref={ref} autoPlay muted playsInline className="h-full w-full object-contain" />
-      {state !== "playing" && <p className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white/80">{state === "error" ? "Reconnecting..." : "Connecting..."}</p>}
+      {state !== "playing" && <p className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white/80">{state === "error" ? "Reconnecting…" : "Connecting…"}</p>}
     </div>
   );
 }
@@ -110,7 +110,7 @@ export function Studio() {
   const [full, setFull] = useState<string | null>(null);
   const [started, setStarted] = useState<string[]>([]); // on-demand cameras switched on by a tap
   const s = q.data;
-  if (!s) return <section className="card text-dim">{q.isError ? `Studio unavailable: ${q.error.message}` : "Loading..."}</section>;
+  if (!s) return <section className="card text-dim">{q.isError ? `Studio unavailable: ${q.error.message}` : "Loading…"}</section>;
   if (!s.configured) return <section className="card text-dim">Studio is not set up. Set STUDIO_API on the server.</section>;
   // On-demand cameras (the webcam) play only after this viewer taps Start, even if someone else turned them on.
   const active = (c: StudioCamera) => s.reachable && (c.onDemand ? started.includes(c.path) : c.live);

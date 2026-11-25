@@ -31,7 +31,7 @@ typography:
   title:
     fontFamily: "ui-rounded, system-ui, sans-serif"
     fontSize: "1.125rem"
-    fontWeight: 600
+    fontWeight: 700
   body:
     fontFamily: "ui-rounded, system-ui, sans-serif"
     fontSize: "1rem"
@@ -181,7 +181,7 @@ which keeps the page local and private.
   `min(20vw, 30vh)`. A light weight is used on purpose for a large glowing figure in a dark room.
 - **Headline**: the date under the clock, in Ink Dim.
 - **Reading**: values in reading tiles (Outside, Room), always tabular, unit included.
-- **Title**: card headings ("Raspberry Pi", "Containers", "VPS").
+- **Title**: card headings ("Raspberry Pi", "Containers", "VPS"), bold (700) like buttons; size sets them apart.
 - **Body**: list rows, track names and settings text. Medium (500) in inputs, bold (700) on buttons.
 - **Label**: captions, metadata and secondary values, almost always in Ink Dim. Extra small (0.75rem) only for the
   third line of a dense tile, never for something you need to read.
