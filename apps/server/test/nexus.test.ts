@@ -55,7 +55,8 @@ test("auth guard and settings", async () => {
   assert.equal((await app.inject({ method: "PUT", url: "/api/settings", cookies, payload: { ...DEFAULT_SETTINGS, theme: "dark", skin: "soft" } })).statusCode, 200);
   assert.equal((await app.inject({ url: "/api/settings", cookies })).json().skin, "soft");
   assert.equal((await app.inject({ method: "PUT", url: "/api/settings", cookies, payload: { ...DEFAULT_SETTINGS, skin: "sakuga" } })).statusCode, 200);
-  assert.equal((await app.inject({ method: "PUT", url: "/api/settings", cookies, payload: { ...DEFAULT_SETTINGS, skin: "glass" } })).statusCode, 400);
+  assert.equal((await app.inject({ method: "PUT", url: "/api/settings", cookies, payload: { ...DEFAULT_SETTINGS, skin: "glass" } })).statusCode, 200);
+  assert.equal((await app.inject({ method: "PUT", url: "/api/settings", cookies, payload: { ...DEFAULT_SETTINGS, skin: "paper" } })).statusCode, 400);
   assert.equal((await app.inject({ method: "PUT", url: "/api/settings", cookies, payload: { ...DEFAULT_SETTINGS, theme: "pink" } })).statusCode, 400);
   assert.equal((await app.inject({ method: "PUT", url: "/api/settings", cookies, payload: { ...DEFAULT_SETTINGS, extra: 1 } })).statusCode, 400);
   const st = await app.inject({ url: "/api/spotify/state", cookies });

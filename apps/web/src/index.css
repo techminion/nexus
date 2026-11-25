@@ -55,6 +55,21 @@ body { background: var(--color-bg); color: var(--color-fg); font-family: ui-roun
   --color-accent: #8f8df7; --sk-shadow: light-dark(#b8b3ff, #5a4fd8); --sk-hi: #ff5fa8;
 }
 
+/* Glass skin: Liquid Glass after github.com/stormaref/LiquidGlassSkill (MIT). Panes are colourless (a 6% white-to-grey
+   tint with a polished rim); the colour comes through from behind. Behind is the current album art, blurred and
+   washed so text stays readable (App.tsx draws .glass-wall), or a soft colour mesh when nothing is playing. glass.ts
+   adds the refraction at each card's edge in Chromium. */
+:root[data-skin="glass"] {
+  --color-bg: light-dark(#e8eaef, #0a0a0c);
+  --color-surface: light-dark(rgb(255 255 255 / 0.06), rgb(255 255 255 / 0.06));
+  --color-raised: transparent;
+  --color-line: light-dark(rgb(30 33 45 / 0.12), rgb(255 255 255 / 0.08));
+  --color-fg: light-dark(#1d1f27, #ededf0); --color-dim: light-dark(#454956, #b9bac2);
+  --glass-tint: linear-gradient(180deg, rgb(255 255 255 / 0.06), rgb(179 179 179 / 0.06));
+  --glass-rim: inset 0 1px 0 light-dark(rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.5)), inset 0 0 0 1px light-dark(rgb(255 255 255 / 0.12), rgb(255 255 255 / 0.1)), inset 0 -1px 0 rgb(255 255 255 / 0.06);
+  --glass-shadow: light-dark(0 10px 30px rgb(30 33 45 / 0.1), 0 18px 40px rgb(0 0 0 / 0.35));
+}
+
 /* Unlayered, so these beat the outline-and-offset look of the components above. */
 :root[data-skin="soft"] {
   .btn, .card, .input, .frame, .bg-raised { border-color: transparent; }
@@ -74,6 +89,27 @@ body { background: var(--color-bg); color: var(--color-fg); font-family: ui-roun
   .card { border-radius: 18px; box-shadow: 6px 7px 0 var(--sk-shadow); }
   .input { border-radius: 12px; }
   button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--sk-hi); }
+}
+
+/* Panel tier for cards (plus refraction from glass.ts); chip tier for controls that sit on the wallpaper; inside a
+   pane, children paint no surface of their own (a faint fill on buttons keeps them looking tappable). */
+:root[data-skin="glass"] {
+  .card { border: 1px solid var(--color-line); border-radius: 20px; background: var(--glass-tint); box-shadow: var(--glass-shadow), var(--glass-rim); backdrop-filter: blur(3px) saturate(125%); }
+  .btn, .bg-raised, .input, .frame { border-width: 1px; }
+  .btn, .bg-raised { background: var(--glass-tint); box-shadow: var(--glass-rim); backdrop-filter: blur(6px) saturate(125%); border-radius: 12px; }
+  .card .btn, .card .bg-raised, .card .input { background: light-dark(rgb(255 255 255 / 0.22), rgb(255 255 255 / 0.06)); border-color: transparent; box-shadow: none; backdrop-filter: none; }
+  .card .bg-raised { background: transparent; }
+  /* Coloured glass: only the tint changes; the rim stays. */
+  .btn-accent, .card .btn-accent { background: linear-gradient(155deg, rgb(61 220 132 / 0.9), rgb(46 196 112 / 0.8)); border-color: rgb(61 220 132 / 0.5); box-shadow: 0 8px 20px rgb(46 196 112 / 0.3), inset 0 1px 0 rgb(255 255 255 / 0.4), inset 0 0 0 1px rgb(255 255 255 / 0.12); }
+  .btn { transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), background 180ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .btn:active { transform: scale(0.97); }
+  .input { border-radius: 10px; }
+  .glass-wall { position: fixed; inset: -15%; z-index: -1; pointer-events: none; background:
+      radial-gradient(40rem 32rem at 42% 38%, light-dark(rgb(139 92 246 / 0.2), rgb(139 92 246 / 0.26)), transparent 60%),
+      radial-gradient(34rem 30rem at 62% 52%, light-dark(rgb(236 72 153 / 0.16), rgb(236 72 153 / 0.2)), transparent 62%),
+      radial-gradient(38rem 34rem at 48% 66%, light-dark(rgb(6 182 212 / 0.14), rgb(6 182 212 / 0.18)), transparent 62%) var(--color-bg);
+    background-size: cover; background-position: center; filter: blur(48px) saturate(1.15); }
+  .glass-wall::after { content: ""; position: absolute; inset: 0; background: light-dark(rgb(255 255 255 / 0.58), rgb(0 0 0 / 0.58)); }
 }
 
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px dashed var(--color-line); outline-offset: 3px; }

@@ -866,7 +866,7 @@ export function SettingsScreen({ onClock }: { onClock: () => void }) {
         )}
         {settings.data && (
           <>
-            <Choice label="Style" value={settings.data.skin ?? "brutal"} options={[["brutal", "Neobrutalism"], ["soft", "Neumorphism"], ["sakuga", "Sakuga"]]} onPick={(skin) => clock.mutate({ ...settings.data!, skin })} />
+            <Choice label="Style" value={settings.data.skin ?? "brutal"} options={[["brutal", "Neobrutalism"], ["soft", "Neumorphism"], ["sakuga", "Sakuga"], ["glass", "Glass"]]} onPick={(skin) => clock.mutate({ ...settings.data!, skin })} />
             <Choice label="Mode" value={settings.data.theme ?? "dark"} options={[["light", "Light"], ["dark", "Dark"], ["system", "System"]]} onPick={(theme) => clock.mutate({ ...settings.data!, theme })} />
           </>
         )}

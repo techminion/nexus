@@ -72,6 +72,10 @@ function Shell({ path, go }: { path: string; go: (p: string) => void }) {
     Object.assign(document.documentElement.dataset, { theme, skin });
     try { localStorage.setItem("theme", theme); localStorage.setItem("skin", skin); } catch { /* storage blocked */ }
     if (skin === "sakuga") void import("./sakuga");
+    if (skin !== "glass") return;
+    let stop: (() => void) | undefined, gone = false;
+    void import("./glass").then((g) => { if (gone) return; g.startGlass(); stop = g.stopGlass; });
+    return () => { gone = true; stop?.(); };
   }, [theme, skin]);
   const offline = sp.isError;
   const lamps = [
@@ -103,8 +107,13 @@ function Shell({ path, go }: { path: string; go: (p: string) => void }) {
       </button>
     );
 
+  // Glass: the current album art, blurred, is the wallpaper behind the panes. Only Spotify's https image URLs.
+  const art = sp.data?.playback?.art;
+  const wall = skin === "glass" && <div aria-hidden className="glass-wall" style={art?.startsWith("https://") ? { backgroundImage: `url("${art}")` } : undefined} />;
+
   return (
     <div className="flex h-full flex-col">
+      {wall}
       <header className="flex min-h-12 items-center justify-between gap-3 px-4 py-1">
         <span className="-rotate-2 border-[3px] border-line bg-accent px-2 text-xl font-black text-black shadow-[3px_3px_0_var(--color-line)]">Nexus</span>
         <button className="flex min-h-11 flex-wrap items-center justify-end gap-x-3 rounded-lg px-2 active:bg-black/10" onClick={() => go("/homelab")} aria-label={`System status: ${lamps.map((l) => `${l.label} ${l.ok === null ? "unknown" : l.ok ? "ok" : "problem"}`).join(", ")}. Open Homelab`}>

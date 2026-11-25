@@ -162,6 +162,15 @@ library's drawn effects on every `.btn` tap (a burst, puffs and ドン! on `.btn
 The core is vendored unchanged in `apps/web/src/vendor/` and loads only when this Style is chosen; reduced motion
 turns the effects off.
 
+**The Glass Style.** The fourth Style (`data-skin="glass"`), Liquid Glass after github.com/stormaref/LiquidGlassSkill
+(MIT). Its four rules hold here: (1) glass needs a backdrop, so `.glass-wall` (drawn in `App.tsx`) is the current
+album art, blurred and washed toward the Mode, with a soft colour mesh when nothing is playing; (2) the panes are
+colourless, a 6% tint with a polished rim, and only `.btn-accent` is coloured glass; (3) inside a `.card`, tiles
+paint no surface and buttons keep only a faint fill so they still look tappable; (4) refraction is Chromium-only
+progressive enhancement: `apps/web/src/glass.ts` bakes a displacement filter per card size and sets
+`backdrop-filter: url(#…)`, and elsewhere the CSS blur stays. Text must stay readable over the busiest cover, so
+the wash over the wallpaper is strong (58%).
+
 **The Lamp Rule.** A status is a round lamp with an ink ring: green for healthy, red for a problem, Ink Dim for
 unknown or not set up. Never colour alone: the lamp always has a text label next to it.
 
