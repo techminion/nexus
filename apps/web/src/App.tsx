@@ -71,6 +71,7 @@ function Shell({ path, go }: { path: string; go: (p: string) => void }) {
   useEffect(() => {
     Object.assign(document.documentElement.dataset, { theme, skin });
     try { localStorage.setItem("theme", theme); localStorage.setItem("skin", skin); } catch { /* storage blocked */ }
+    if (skin === "sakuga") void import("./sakuga");
   }, [theme, skin]);
   const offline = sp.isError;
   const lamps = [

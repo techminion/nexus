@@ -38,7 +38,7 @@ export type Action =
   | { type: "none" };
 export interface Shortcut { label: string; action: Action }
 export type Theme = "dark" | "light" | "system";
-export type Skin = "brutal" | "soft";
+export type Skin = "brutal" | "soft" | "sakuga";
 export interface Settings { clock24h: boolean; theme?: Theme; skin?: Skin; shortcuts: Shortcut[] }
 export interface Playback {
   track: string | null; artists: string[]; album: string | null; art: string | null;

@@ -155,6 +155,13 @@ every other token), `--color-line` set to that surface so outlines vanish, raise
 and sunk wells (`--soft-in`), and Nexus Green unchanged. Components keep their usual classes; never add Soft-only
 markup. The Don'ts below apply to Neobrutalism.
 
+**The Sakuga Style.** The third Style (`data-skin="sakuga"`), after github.com/finktheartist/sakuga-vfx (MIT): the
+same outlined, offset-shadow structure as Neobrutalism, recoloured to white paper, indigo ink, lavender shadows and a
+violet primary, with pink focus rings. Presses squash and spring back, and `apps/web/src/sakuga.ts` throws the
+library's drawn effects on every `.btn` tap (a burst, puffs and ドン! on `.btn-accent`, small wedges on the rest).
+The core is vendored unchanged in `apps/web/src/vendor/` and loads only when this Style is chosen; reduced motion
+turns the effects off.
+
 **The Lamp Rule.** A status is a round lamp with an ink ring: green for healthy, red for a problem, Ink Dim for
 unknown or not set up. Never colour alone: the lamp always has a text label next to it.
 

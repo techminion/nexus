@@ -45,6 +45,14 @@ body { background: var(--color-bg); color: var(--color-fg); font-family: ui-roun
   .frame { @apply border-[3px] border-line; }
 }
 
+/* Sakuga skin (after github.com/finktheartist/sakuga-vfx): white paper, indigo ink, lavender offset shadows, a violet
+   primary and pink highlights. Presses squash and spring back; sakuga.ts throws the drawn effects. */
+:root[data-skin="sakuga"] {
+  --color-bg: light-dark(#f4f3ff, #14122b); --color-surface: light-dark(#ffffff, #1f1c45); --color-raised: light-dark(#eceaff, #2a2660);
+  --color-line: light-dark(#1d1a4a, #d9d6ff); --color-fg: light-dark(#1d1a4a, #f3f1ff); --color-dim: light-dark(#5d5890, #b3aee0);
+  --color-accent: #8f8df7; --sk-shadow: light-dark(#b8b3ff, #5a4fd8); --sk-hi: #ff5fa8;
+}
+
 /* Unlayered, so these beat the outline-and-offset look of the components above. */
 :root[data-skin="soft"] {
   .btn, .card, .input, .frame, .bg-raised { border-color: transparent; }
@@ -55,6 +63,15 @@ body { background: var(--color-bg); color: var(--color-fg); font-family: ui-roun
   /* Wells: inputs, tiles, and the tracks of progress bars. */
   .input, .bg-raised, .rounded-full.bg-surface { box-shadow: var(--soft-in); }
   button:focus-visible, input:focus-visible, select:focus-visible { outline-color: var(--color-fg); }
+}
+
+/* Lavender shadows under ink outlines, rounder corners, and a squash that overshoots on release. */
+:root[data-skin="sakuga"] {
+  .btn { border-radius: 15px; box-shadow: 4px 5px 0 var(--sk-shadow); transition: transform 260ms cubic-bezier(0.3, 1.9, 0.5, 1), box-shadow 120ms; }
+  .btn:active { transform: scale(1.06, 0.84); box-shadow: 1px 1px 0 var(--sk-shadow); transition-duration: 60ms; }
+  .card { border-radius: 18px; box-shadow: 6px 7px 0 var(--sk-shadow); }
+  .input { border-radius: 12px; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--sk-hi); }
 }
 
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px dashed var(--color-line); outline-offset: 3px; }

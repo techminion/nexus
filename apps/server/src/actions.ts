@@ -28,8 +28,8 @@ export const voiceShortcut = (said: string, shortcuts: Shortcut[]) => {
   return p ? shortcuts.findIndex((s) => s.action.type !== "none" && voicePhrase(s.label) === p) : -1;
 };
 export const THEMES = ["dark", "light", "system"] as const;
-/** The look: neobrutalism (outlines, hard shadows) or neumorphism ("soft"). Independent of light/dark. */
-export const SKINS = ["brutal", "soft"] as const;
+/** The look: neobrutalism (outlines, hard shadows), neumorphism ("soft") or Sakuga (anime press effects). Independent of light/dark. */
+export const SKINS = ["brutal", "soft", "sakuga"] as const;
 export interface Settings { clock24h: boolean; theme?: (typeof THEMES)[number]; skin?: (typeof SKINS)[number]; shortcuts: Shortcut[] }
 
 export const DEFAULT_SETTINGS: Settings = {
