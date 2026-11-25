@@ -27,7 +27,7 @@ export const voiceShortcut = (said: string, shortcuts: Shortcut[]) => {
   const p = voicePhrase(said);
   return p ? shortcuts.findIndex((s) => s.action.type !== "none" && voicePhrase(s.label) === p) : -1;
 };
-export const THEMES = ["dark", "light", "system"] as const;
+export const THEMES = ["dark", "light", "soft", "system"] as const;
 export interface Settings { clock24h: boolean; theme?: (typeof THEMES)[number]; shortcuts: Shortcut[] }
 
 export const DEFAULT_SETTINGS: Settings = {

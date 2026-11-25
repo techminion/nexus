@@ -37,7 +37,7 @@ export type Action =
   | { type: "scene"; steps: Action[] }
   | { type: "none" };
 export interface Shortcut { label: string; action: Action }
-export type Theme = "dark" | "light" | "system";
+export type Theme = "dark" | "light" | "soft" | "system";
 export interface Settings { clock24h: boolean; theme?: Theme; shortcuts: Shortcut[] }
 export interface Playback {
   track: string | null; artists: string[]; album: string | null; art: string | null;

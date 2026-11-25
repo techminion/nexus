@@ -148,6 +148,12 @@ ink. Nexus Green is the same in both.
 **The Ink Draws Everything Rule.** Outlines and shadows use Ink Line, never a tint, grey or transparent black. A
 border that has to be quieter gets thinner (2px, as on lamps and bars), not lighter.
 
+**The Soft Exception.** The optional Soft theme (`data-theme="soft"`, chosen in Settings) is a neumorphic finish and
+the one place blurred shadows are allowed. It lives in its own `:root[data-theme="soft"]` blocks in `index.css`:
+one pale surface, `--color-line` set to that surface so outlines vanish, raised controls (`--soft-up`), pressed
+and sunk wells (`--soft-in`), and Nexus Green unchanged. Components keep their usual classes; never add
+Soft-only markup. The Don'ts below apply to the default themes.
+
 **The Lamp Rule.** A status is a round lamp with an ink ring: green for healthy, red for a problem, Ink Dim for
 unknown or not set up. Never colour alone: the lamp always has a text label next to it.
 

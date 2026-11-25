@@ -22,6 +22,16 @@
 :root { color-scheme: only dark; }
 :root[data-theme="light"] { color-scheme: only light; }
 :root[data-theme="system"] { color-scheme: light dark; }
+
+/* Soft (neumorphic): one pale surface; controls are lit from the top left and stand out of it, press into it, and
+   wells (inputs, tiles) are sunk into it. Outlines disappear, so --color-line is the surface colour itself. */
+:root[data-theme="soft"] {
+  color-scheme: only light;
+  --color-bg: #e3e8ef; --color-surface: #e3e8ef; --color-raised: #e3e8ef; --color-line: #e3e8ef;
+  --color-fg: #232a35; --color-dim: #4f5866;
+  --soft-up: 4px 4px 8px #b5bcc7, -4px -4px 8px #ffffff;
+  --soft-in: inset 3px 3px 6px #b5bcc7, inset -3px -3px 6px #ffffff;
+}
 html, body, #root { height: 100%; }
 body { background: var(--color-bg); color: var(--color-fg); font-family: ui-rounded, system-ui, sans-serif; overscroll-behavior: none; }
 
@@ -32,6 +42,18 @@ body { background: var(--color-bg); color: var(--color-fg); font-family: ui-roun
   .card { @apply rounded-xl border-[3px] border-line bg-surface p-4 shadow-[6px_6px_0_var(--color-line)]; }
   .input { @apply min-h-12 w-full rounded-lg border-[3px] border-line bg-surface px-3 font-medium; }
   .frame { @apply border-[3px] border-line; }
+}
+
+/* Unlayered, so these beat the outline-and-offset look of the components above. */
+:root[data-theme="soft"] {
+  .btn, .card, .input, .frame, .bg-raised { border-color: transparent; }
+  .btn { box-shadow: var(--soft-up); }
+  .btn:active, .btn:not(.btn-accent)[aria-checked="true"], .btn:not(.btn-accent)[aria-pressed="true"] { transform: none; box-shadow: var(--soft-in); }
+  /* Small enough that the scrolling area's 8px padding doesn't cut the shadow off. */
+  .card { border-radius: 1.25rem; box-shadow: 5px 5px 10px #b5bcc7, -5px -5px 10px #ffffff; }
+  /* Wells: inputs, tiles, and the tracks of progress bars. */
+  .input, .bg-raised, .rounded-full.bg-surface { box-shadow: var(--soft-in); }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline-color: var(--color-fg); }
 }
 
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px dashed var(--color-line); outline-offset: 3px; }

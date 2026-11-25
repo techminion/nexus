@@ -852,7 +852,7 @@ export function SettingsScreen({ onClock }: { onClock: () => void }) {
           <div className="flex min-h-12 flex-wrap items-center justify-between gap-2" role="radiogroup" aria-label="Theme">
             Theme
             <div className="flex gap-2">
-              {(["dark", "light", "system"] as const).map((t) => (
+              {(["dark", "light", "soft", "system"] as const).map((t) => (
                 <button key={t} role="radio" aria-checked={(settings.data!.theme ?? "dark") === t} className={`btn capitalize ${(settings.data!.theme ?? "dark") === t ? "btn-accent" : ""}`} onClick={() => clock.mutate({ ...settings.data!, theme: t })}>{t}</button>
               ))}
             </div>
